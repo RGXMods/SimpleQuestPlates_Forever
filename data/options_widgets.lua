@@ -274,7 +274,6 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     dsHeader:SetFontObject(GameFontNormal)
     dsHeader:SetTextColor(0.345, 0.745, 0.506)
     yOffset = yOffset - 18
-
     -- Same three-way model as the Global "Background style" dropdown, as a
     -- dropdown so both surfaces expose identical options.
     local Drops = _G.RGXDropdowns
@@ -308,7 +307,9 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
 
     local dd = Drops:CreateNestedDropdown(parent, {
-        label = "Style",
+        -- No dropdown label: the section header above ("Display Style") is
+        -- the label. A second "Style" caption would say the word twice.
+        label = "",
         width = 300,
         buttonWidth = 290,
         triggerStyle = "retail",
@@ -353,7 +354,8 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
         end
     end)
 
-    yOffset = yOffset - 36
+    -- Breathing room below the dropdown before the next section begins.
+    yOffset = yOffset - 52
 
     return yOffset
 end
