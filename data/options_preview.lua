@@ -673,10 +673,10 @@ function SQP:CreatePreviewSection(parent)
             if self.lootIcon then self.lootIcon:Hide() end
             if self.killIcon  then self.killIcon:Hide()  end
 
-            if SQPSettings.showPercentIcon == true or unifiedType then
+            if SQPSettings.showPercentIcon == true then
                 local pOW   = SQP:GetOutlineInfo("percent")
-                -- Unified mode always renders the bare "%" beside the chip
-                -- (side/offset options stay live); icon/text modes unchanged.
+                -- The toggle hides only the "%" character; the number (and the
+                -- chip in unified mode) always stays. Mirrors quest.lua.
                 if percentIconMode or unifiedType then
                     -- Icon mode: jellybean + number + "%" at configured side
                     icon:Show()
@@ -711,17 +711,18 @@ function SQP:CreatePreviewSection(parent)
                     end
                 end
             else
+                -- "%" hidden: the number must still render in every style —
+                -- icon mode keeps the jellybean, text mode shows the bare
+                -- number, and unified keeps the chip with the number only.
                 if self.percentIcon then self.percentIcon:Hide() end
                 if self.percentIconOutline then self.percentIconOutline:Hide() end
                 if percentIconMode then
                     icon:Show()
-                    self.iconText:SetText("75")
-                    if self.iconTextOutline then self.iconTextOutline:SetText("75") end
                 else
                     icon:Hide()
-                    self.iconText:SetText("")
-                    if self.iconTextOutline then self.iconTextOutline:SetText("") end
                 end
+                self.iconText:SetText("75")
+                if self.iconTextOutline then self.iconTextOutline:SetText("75") end
             end
         end
 
