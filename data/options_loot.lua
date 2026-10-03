@@ -57,6 +57,7 @@ function SQP:CreateLootOptions(content)
             ActivateLoot()
             SQP:RefreshAllNameplates()
         end)
+        self:CreateIconSideSection(c, "loot", ActivateLoot, yOffset)
         yOffset = yOffset - 24
 
         -- Display Style (centered buttons)
@@ -90,9 +91,7 @@ function SQP:CreateLootOptions(content)
             SQP:SetSetting('itemColor', {unpack(lootDefault)})
             sw:SetColorTexture(unpack(lootDefault)); SQP:RefreshAllNameplates()
         end)
-        colorReset:ClearAllPoints()
-        colorReset:SetPoint("TOP", colorBtn, "TOP", 0, 0)
-        colorReset:SetPoint("RIGHT", c, "RIGHT", -8, 0)
+        _G.RGXUI:AnchorRowReset(c, colorReset, colorBtn)
 
         colorBtn:SetScript("OnClick", function()
             ActivateLoot()
@@ -178,8 +177,6 @@ function SQP:CreateLootOptions(content)
         yOffset = MakeSlider(c, "Size",     "lootIconSize",    14,   8,  40, yOffset)
         yOffset = MakeSlider(c, "Offset X", "lootIconOffsetX", -38, -80, 80, yOffset)
         yOffset = MakeSlider(c, "Offset Y", "lootIconOffsetY",  16, -80, 80, yOffset)
-
-        yOffset = self:CreateIconSideSection(c, "loot", ActivateLoot, yOffset)
 
         yOffset = yOffset - 10
         local resetBtn = self:CreateStyledButton(c, "Reset Loot Settings", 150, 22)

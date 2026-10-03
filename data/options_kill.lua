@@ -57,6 +57,7 @@ function SQP:CreateKillOptions(content)
             ActivateKill()
             SQP:RefreshAllNameplates()
         end)
+        self:CreateIconSideSection(c, "kill", ActivateKill, yOffset)
         yOffset = yOffset - 24
 
         -- Display Style (centered buttons)
@@ -90,9 +91,7 @@ function SQP:CreateKillOptions(content)
             SQP:SetSetting('killColor', {unpack(killDefault)})
             sw:SetColorTexture(unpack(killDefault)); SQP:RefreshAllNameplates()
         end)
-        colorReset:ClearAllPoints()
-        colorReset:SetPoint("TOP", colorBtn, "TOP", 0, 0)
-        colorReset:SetPoint("RIGHT", c, "RIGHT", -8, 0)
+        _G.RGXUI:AnchorRowReset(c, colorReset, colorBtn)
 
         colorBtn:SetScript("OnClick", function()
             ActivateKill()
@@ -178,8 +177,6 @@ function SQP:CreateKillOptions(content)
         yOffset = MakeSlider(c, "Size",     "killIconSize",    12,  8,  40, yOffset)
         yOffset = MakeSlider(c, "Offset X", "killIconOffsetX",  2, -80,  80, yOffset)
         yOffset = MakeSlider(c, "Offset Y", "killIconOffsetY", 15, -80,  80, yOffset)
-
-        yOffset = self:CreateIconSideSection(c, "kill", ActivateKill, yOffset)
 
         yOffset = yOffset - 10
         local resetBtn = self:CreateStyledButton(c, "Reset Kill Settings", 150, 22)

@@ -70,6 +70,14 @@ function SQP:UsesLevelChip(typeKey)
     return value == true
 end
 
+-- Background styles share numeric counts. Only explicit Text uses ratios.
+function SQP:GetDisplayStyle(typeKey)
+    if self:UsesLevelChip(typeKey) then return "chip" end
+    local value = typeKey and SQPSettings[typeKey .. "ShowIconBackground"]
+    if value == nil then value = SQPSettings.showIconBackground end
+    return value == false and "text" or "icon"
+end
+
 -- This is the sole placement/size model for real and preview overlays.
 function SQP:ApplyQuestLayout(questFrame, anchorTarget, parentScaleRatio)
     local icon = questFrame.icon
@@ -93,17 +101,20 @@ end
 -- Position the percent sign ("icon" mode) or the combined percent text
 -- ("text" mode). In icon mode the side setting controls placement: hugging
 -- the number's left/right side, or in the kill/loot mini-icon badge slots.
--- The offset sliders still apply on top (right/left modes treat X as the
--- distance from the number; badge modes mirror the kill/loot anchors).
+-- The offset sliders measure from the shipped baseline look (BASE_SPACING):
+-- slider 0 renders exactly where the old hard-coded 18px default sat, so the
+-- current settings ARE the new zero.
+local PERCENT_BASE_SPACING = 18
+
 function SQP:AnchorPercentSign(percentIcon, icon, textMode)
     if not percentIcon or not icon then
         return
     end
-    local offX = self:GetSettingValue("percentIconOffsetX")
+    local offX = PERCENT_BASE_SPACING + self:GetSettingValue("percentIconOffsetX")
     local offY = self:GetSettingValue("percentIconOffsetY")
     percentIcon:ClearAllPoints()
     if textMode then
-        percentIcon:SetPoint('CENTER', icon, offX, offY)
+        percentIcon:SetPoint('CENTER', icon, self:GetSettingValue("percentIconOffsetX"), offY)
         return
     end
     local side = SQPSettings.percentSignSide or "right"
@@ -301,12 +312,11 @@ function SQP:UpdateQuestToast(questFrame, replay)
         or not questFrame.toastSelected then
         if group:IsPlaying() then group:Stop() end
         questFrame.qmark:SetAlpha(0)
-    else
-        group:SetLooping(questFrame.isPreview and "REPEAT" or "NONE")
-        if replay or (questFrame.isPreview and not group:IsPlaying()) then
-            if group:IsPlaying() then group:Stop() end
-            group:Play()
-        end
+    elseif replay then
+        -- One play per explicit request (the Preview toast button or a live
+        -- plate show); ordinary preview/layout refreshes must not restart it.
+        if group:IsPlaying() then group:Stop() end
+        group:Play()
     end
 end
 
@@ -686,13 +696,9 @@ function SQP:RefreshAllNameplates()
 
     -- Update settings for all quest plates
     for plate, questFrame in pairs(self.QuestPlates) do
-        if questFrame and questFrame.icon then
+        if questFrame and questFrame.icon and not questFrame.isPreview then
             local function IsIconStyleEnabled(typeKey)
-                local value = SQPSettings[typeKey .. "ShowIconBackground"]
-                if value == nil then
-                    value = SQPSettings.showIconBackground
-                end
-                return value ~= false
+                return self:GetDisplayStyle(typeKey) ~= "text"
             end
 
             self:RefreshQuestPlateAnchor(plate, true)
@@ -865,5 +871,8 @@ function SQP:RefreshAllNameplates()
     -- Force update quest display
     for plate in pairs(self.ActiveNameplates) do
         self:UpdateQuestIcon(plate, plate._unitID)
+    end
+    if self.previewFrame and type(self.previewFrame.UpdatePreview) == "function" then
+        self.previewFrame:UpdatePreview()
     end
 end

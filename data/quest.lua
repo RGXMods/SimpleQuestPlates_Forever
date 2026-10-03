@@ -445,11 +445,7 @@ function SQP:UpdateQuestIcon(plate, unitID)
     local displayText = "?"
     local displayColor = {1, 1, 1} -- Default white
     local function IsIconStyleEnabled(typeKey)
-        local value = SQPSettings[typeKey .. "ShowIconBackground"]
-        if value == nil then
-            value = SQPSettings.showIconBackground
-        end
-        return value ~= false
+        return self:GetDisplayStyle(typeKey) ~= "text"
     end
 
     if progressGlob and questType ~= 2 then
@@ -541,14 +537,17 @@ function SQP:UpdateQuestIcon(plate, unitID)
 
     local percentIconMode = IsIconStyleEnabled("percent")
     local unified = self:UsesLevelChip(effectiveType)
-    -- The native level chip is the complete display. Do not render a second
-    -- floating percent sign beside it; put the percentage inside the chip.
-    local showPercentIcon = not unified and showIcon and questType == 3
+    -- The chip wraps only the number; the percent sign always lives outside
+    -- it so the left/right side options keep working in unified mode too.
+    local showPercentIcon = showIcon and questType == 3
         and SQPSettings.showPercentIcon ~= false
     local percentText = tostring(displayText) .. "%"
     if showPercentIcon then
+        -- Unified mode always renders the bare "%" beside the chip: the chip
+        -- holds the number and the sign honors the side/offset options.
+        local signMode = unified and true or percentIconMode
         if Q.icon then
-            if percentIconMode then
+            if percentIconMode and not unified then
                 Q.icon:Show()
             else
                 Q.icon:Hide()
@@ -556,7 +555,7 @@ function SQP:UpdateQuestIcon(plate, unitID)
         end
         if Q.percentIcon then
             -- Icon mode: show "%" as separate indicator; Text mode: show combined "75%"
-            if percentIconMode then
+            if signMode then
                 Q.percentIcon:SetText("%")
             else
                 Q.percentIcon:SetText(percentText)
@@ -566,10 +565,13 @@ function SQP:UpdateQuestIcon(plate, unitID)
             else
                 Q.percentIcon:SetTextColor(unpack(SQPSettings.percentColor or {0.2, 1, 1}))
             end
+            -- Anchor through the shared side/offset model; the icon keeps its
+            -- anchor geometry in unified mode so the sign hugs the chip.
+            self:AnchorPercentSign(Q.percentIcon, Q.icon or Q.iconText, signMode)
             Q.percentIcon:Show()
         end
         if Q.percentIconOutline then
-            Q.percentIconOutline:SetText(percentText)
+            Q.percentIconOutline:SetText(signMode and "%" or percentText)
             local outlineWidth = SQP:GetOutlineInfo("percent")
             if outlineWidth and outlineWidth > 0 then
                 Q.percentIconOutline:Show()
@@ -670,8 +672,7 @@ function SQP:UpdateQuestIcon(plate, unitID)
                 if Q.iconTextOutline then Q.iconTextOutline:SetText("") end
             end
         else
-            local chipText = unified and questType == 3
-                and (tostring(displayText) .. "%") or displayText
+            local chipText = displayText
             Q.iconText:SetText(chipText)
             if Q.iconTextOutline then
                 Q.iconTextOutline:SetText(chipText)

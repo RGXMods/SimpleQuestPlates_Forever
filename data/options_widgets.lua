@@ -57,6 +57,7 @@ end
 -- Create custom styled slider - delegates to RGXUI
 function SQP:CreateStyledSlider(parent, options)
 	options = options or {}
+	if options.valueDisplay == nil then options.valueDisplay = "hover" end
 	local baseline = options.key and self:GetSettingBaseline(options.key)
 	if baseline ~= nil then options.default = baseline end
 	local UI = _G.RGXUI
@@ -88,6 +89,13 @@ function SQP:CreateStyledSlider(parent, options)
 	valueLabel:SetPoint("TOP", slider, "BOTTOM", 0, -2)
 	slider.value = valueLabel
 	slider.valueLabel = valueLabel
+	if options.valueDisplay ~= "always" then valueLabel:Hide() end
+	slider:SetScript("OnEnter", function()
+		if options.valueDisplay ~= "none" then valueLabel:Show() end
+	end)
+	slider:SetScript("OnLeave", function()
+		if options.valueDisplay ~= "always" then valueLabel:Hide() end
+	end)
 
 	local nativeSetValue = slider.SetValue
 	local restoring = false
@@ -184,7 +192,7 @@ function SQP:CreateFontSection(parent, typeKey, yOffset, activatePreviewFn)
     -- sections still need their own heading.
     if typeKey then
         local fontHeader = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        fontHeader:SetPoint("TOPLEFT", 20, yOffset)
+        fontHeader:SetPoint("TOPLEFT", 8, yOffset)
         fontHeader:SetText("|cff58be81" .. (self.L["OPTIONS_FONT"] or "Font") .. "|r")
         SQP:ApplyDefaultFont(fontHeader)
         yOffset = yOffset - 18
@@ -205,15 +213,15 @@ function SQP:CreateFontSection(parent, typeKey, yOffset, activatePreviewFn)
 			SQP:RefreshFontDisplays(activatePreviewFn)
 		end,
 	})
-	sizeSlider:SetPoint("TOPLEFT", 20, yOffset)
-	sizeSlider:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -20, yOffset)
+	sizeSlider:SetPoint("TOPLEFT", 8, yOffset)
+	sizeSlider:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset)
 	self.optionControls[sizeKey] = sizeSlider
 
 	yOffset = yOffset - 38
 
     -- == Font Family ========================================================
     local familyLabel = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    familyLabel:SetPoint("TOPLEFT", 20, yOffset)
+    familyLabel:SetPoint("TOPLEFT", 8, yOffset)
     familyLabel:SetText("Family")
     SQP:ApplyDefaultFont(familyLabel)
     familyLabel:SetTextColor(0.345, 0.745, 0.506)
@@ -240,8 +248,8 @@ function SQP:CreateFontSection(parent, typeKey, yOffset, activatePreviewFn)
             SQP:RefreshFontDisplays(activatePreviewFn)
         end,
     })
-    fontControl:SetPoint("TOPLEFT", 20, yOffset)
-    fontControl:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -40, yOffset)
+    fontControl:SetPoint("TOPLEFT", 8, yOffset)
+    fontControl:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -36, yOffset)
     self.optionControls[familyKey] = fontControl
 
     yOffset = yOffset - 30
@@ -265,6 +273,7 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
 
     local settingKey = typeKey and (typeKey .. "ShowIconBackground") or "showIconBackground"
+    local chipKey = typeKey and (typeKey .. "LevelChip") or "unifiedNameplates"
 
     local dsHeader = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     SQP:ApplyDefaultFont(dsHeader)
@@ -273,30 +282,66 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     dsHeader:SetFontObject(GameFontNormal)
     dsHeader:SetTextColor(0.345, 0.745, 0.506)
     yOffset = yOffset - 18
+    -- Same three-way model as the Global "Background style" dropdown, as a
+    -- dropdown so both surfaces expose identical options.
+    local Drops = _G.RGXDropdowns
+    if not (Drops and type(Drops.CreateNestedDropdown) == "function") then
+        return yOffset
+    end
 
-    local iconStyleBtn = self:CreateStyledButton(parent, "Icon", 68, 22)
-    local textStyleBtn = self:CreateStyledButton(parent, "Text", 68, 22)
-    local chipStyleBtn = self:CreateStyledButton(parent, "Level chip", 82, 22)
-    local chipKey = typeKey and (typeKey .. "LevelChip") or "unifiedNameplates"
-    iconStyleBtn:SetPoint("TOPLEFT", parent, "TOP", -117, yOffset - 2)
-    textStyleBtn:SetPoint("LEFT", iconStyleBtn, "RIGHT", 8, 0)
-    chipStyleBtn:SetPoint("LEFT", textStyleBtn, "RIGHT", 8, 0)
-
-    local function IsIconStyleEnabled()
+    local function CurrentMode()
+        if SQP:UsesLevelChip(typeKey) then return "chip" end
         local value = SQPSettings[settingKey]
         if value == nil and typeKey then
             value = SQPSettings.showIconBackground
         end
-        return value ~= false
+        if value == false then return "text" end
+        return "icon"
     end
 
     local function UpdateStyleButtons()
-        local iconStyle = IsIconStyleEnabled()
-        local chipStyle = SQP:UsesLevelChip(typeKey)
-        iconStyleBtn:SetAlpha(not chipStyle and iconStyle and 1 or 0.6)
-        textStyleBtn:SetAlpha(not chipStyle and not iconStyle and 1 or 0.6)
-        chipStyleBtn:SetAlpha(chipStyle and 1 or 0.6)
+        local dd = SQP.optionControls[settingKey .. "StyleDropdown"]
+        if dd and type(dd.SetValue) == "function" then
+            dd:SetValue(CurrentMode())
+        end
     end
+
+    local function BroadcastStyleUpdate()
+        local updaters = SQP.styleButtonUpdaters and SQP.styleButtonUpdaters[settingKey]
+        if not updaters then return end
+        for _, fn in ipairs(updaters) do
+            fn()
+        end
+    end
+
+    local dd = Drops:CreateNestedDropdown(parent, {
+        -- No dropdown label: the section header above ("Display Style") is
+        -- the label. A second "Style" caption would say the word twice.
+        label = "",
+        width = 300,
+        buttonWidth = 290,
+        triggerStyle = "retail",
+        value = CurrentMode(),
+        items = {
+            { text = "Classic (default)", value = "icon" },
+            { text = "Text",              value = "text" },
+            { text = "Forever",           value = "chip" },
+        },
+        onChange = function(value)
+            SQP:SetSetting(chipKey, value == "chip")
+            SQP:SetSetting(settingKey, value ~= "text")
+            BroadcastStyleUpdate()
+            if activatePreviewFn then activatePreviewFn() end
+            SQP:RefreshAllNameplates()
+        end,
+    })
+    if dd then
+        dd:SetPoint("TOPLEFT", 8, yOffset)
+        dd:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset)
+        SQP:SetControlTooltip(dd, "Pick this quest type's display: Classic icon, Text, or Forever level-frame style.")
+        self.optionControls[settingKey .. "StyleDropdown"] = dd
+    end
+
     UpdateStyleButtons()
     if self.optionControls then
         self.optionControls[settingKey .. "StyleUpdater"] = UpdateStyleButtons
@@ -309,36 +354,16 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
     table.insert(SQP.styleButtonUpdaters[settingKey], UpdateStyleButtons)
 
-    local function BroadcastStyleUpdate()
-        local updaters = SQP.styleButtonUpdaters and SQP.styleButtonUpdaters[settingKey]
-        if not updaters then return end
-        for _, fn in ipairs(updaters) do
-            fn()
+    -- Keep the dropdown selection live when the style changes from elsewhere.
+    table.insert(SQP.styleButtonUpdaters[settingKey], function()
+        local control = self.optionControls[settingKey .. "StyleDropdown"]
+        if control and type(control.SetValue) == "function" then
+            control:SetValue(CurrentMode())
         end
-    end
+    end)
 
-    iconStyleBtn:SetScript("OnClick", function()
-        SQP:SetSetting(chipKey, false)
-        SQP:SetSetting(settingKey, true)
-        BroadcastStyleUpdate()
-        if activatePreviewFn then activatePreviewFn() end
-        SQP:RefreshAllNameplates()
-    end)
-    textStyleBtn:SetScript("OnClick", function()
-        SQP:SetSetting(chipKey, false)
-        SQP:SetSetting(settingKey, false)
-        BroadcastStyleUpdate()
-        if activatePreviewFn then activatePreviewFn() end
-        SQP:RefreshAllNameplates()
-    end)
-    chipStyleBtn:SetScript("OnClick", function()
-        SQP:SetSetting(chipKey, true)
-        SQP:SetSetting(settingKey, true)
-        BroadcastStyleUpdate()
-        if activatePreviewFn then activatePreviewFn() end
-        SQP:RefreshAllNameplates()
-    end)
-    yOffset = yOffset - 28
+    -- Comfortable-but-tight gap below the dropdown before the next section.
+    yOffset = yOffset - 40
 
     return yOffset
 end
@@ -382,9 +407,7 @@ function SQP:CreateMiniIconTintSection(parent, typeKey, activatePreviewFn, yOffs
         if activatePreviewFn then activatePreviewFn() end
         SQP:RefreshAllNameplates()
     end)
-    tintReset:ClearAllPoints()
-    tintReset:SetPoint("TOP", tintColorBtn, "TOP", 0, 0)
-    tintReset:SetPoint("RIGHT", parent, "RIGHT", -8, 0)
+    _G.RGXUI:AnchorRowReset(parent, tintReset, tintColorBtn)
 
     local function UpdateTintAlpha()
         local a = SQPSettings[tintKey] == true and 1 or 0.4
@@ -434,7 +457,7 @@ function SQP:CreateMainIconSection(parent, typeKey, activatePreviewFn, yOffset, 
     -- Section header (tight gap)
     local header = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     SQP:ApplyDefaultFont(header)
-    header:SetPoint("TOPLEFT", 20, yOffset)
+    header:SetPoint("TOPLEFT", 8, yOffset)
     header:SetText("|cff58be81Main Icon|r")
     header:SetFontObject(GameFontNormal)
     yOffset = yOffset - 18
@@ -442,7 +465,7 @@ function SQP:CreateMainIconSection(parent, typeKey, activatePreviewFn, yOffset, 
     -- Animate Main Icon checkbox (skip if tab already exposes it in its own Animate section)
     if not skipAnimate then
         local animFrame = self:CreateStyledCheckbox(parent, "Animate Main Icon")
-        animFrame:SetPoint("TOPLEFT", 20, yOffset)
+        animFrame:SetPoint("TOPLEFT", 8, yOffset)
         animFrame.checkbox:SetChecked(SQPSettings[animKey] == true)
         self.optionControls[animKey] = animFrame.checkbox
         animFrame.checkbox:SetScript("OnClick", function(self)
@@ -455,7 +478,7 @@ function SQP:CreateMainIconSection(parent, typeKey, activatePreviewFn, yOffset, 
     -- Inline tint row: [Swatch] [Tint Main Icon] [Reset]
     local tintColorBtn = CreateFrame("Button", nil, parent)
     tintColorBtn:SetSize(20, 20)
-    tintColorBtn:SetPoint("TOPLEFT", 20, yOffset)
+    tintColorBtn:SetPoint("TOPLEFT", 8, yOffset)
     local tintBg = tintColorBtn:CreateTexture(nil, "BACKGROUND")
     tintBg:SetAllPoints(); tintBg:SetColorTexture(0, 0, 0, 1)
     local tintSw = tintColorBtn:CreateTexture(nil, "ARTWORK")
@@ -472,7 +495,7 @@ function SQP:CreateMainIconSection(parent, typeKey, activatePreviewFn, yOffset, 
         tintSw:SetColorTexture(1, 1, 1)
         SQP:RefreshAllNameplates()
     end)
-    tintReset:SetPoint("LEFT", tintCbFrame.label, "RIGHT", 6, 0)
+    _G.RGXUI:AnchorRowReset(parent, tintReset, tintColorBtn)
 
     local function UpdateTintAlpha()
         local a = SQPSettings[tintKey] == true and 1 or 0.4
@@ -576,24 +599,16 @@ function SQP:CreatePagedContent(content, pageCount, opts)
     return nil, frames
 end
 
--- Per-type task icon side section (kill / loot): Left / Right buttons
--- choosing which side of the quest display the mini icon badge sits on.
+-- Inline side controls share the Show Icon row on each individual page.
 function SQP:CreateIconSideSection(parent, typeKey, activatePreviewFn, yOffset)
     if not self.optionControls then self.optionControls = {} end
-    local sideKey = typeKey .. "IconSide"
-    local defaultSide = (typeKey == "kill") and "left" or "right"
-    local labelText = (typeKey == "kill") and "Kill Icon Side" or "Loot Icon Side"
-
-    local sideHeader = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    SQP:ApplyDefaultFont(sideHeader)
-    sideHeader:SetPoint("TOPLEFT", 20, yOffset)
-    sideHeader:SetText("|cff58be81" .. labelText .. "|r")
-    yOffset = yOffset - 16
-
-    local leftSideBtn = self:CreateStyledButton(parent, "Left", 64, 20)
-    local rightSideBtn = self:CreateStyledButton(parent, "Right", 64, 20)
-    leftSideBtn:SetPoint("TOPLEFT", parent, "TOP", -67, yOffset)
-    rightSideBtn:SetPoint("LEFT", leftSideBtn, "RIGHT", 6, 0)
+    local sideKey = typeKey == "percent" and "percentSignSide" or typeKey .. "IconSide"
+    local defaultSide = self.DEFAULTS[sideKey]
+    local group = _G.RGXUI:CreateButtonGroup(parent, { "Left", "Right" },
+        { buttonWidth = 60, height = 20, gap = 6 })
+    group:ClearAllPoints()
+    group:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset - 1)
+    local leftSideBtn, rightSideBtn = group.buttons[1], group.buttons[2]
 
     local function UpdateSideButtons()
         local current = SQPSettings[sideKey] or defaultSide
@@ -602,6 +617,8 @@ function SQP:CreateIconSideSection(parent, typeKey, activatePreviewFn, yOffset)
     end
     UpdateSideButtons()
     self.optionControls[sideKey .. "SideUpdater"] = UpdateSideButtons
+    self.optionControls[sideKey .. "Buttons"] = { left = leftSideBtn, right = rightSideBtn }
+    if typeKey == "percent" then self.optionControls.updatePercentSignSideButtons = UpdateSideButtons end
 
     leftSideBtn:SetScript("OnClick", function()
         SQP:SetSetting(sideKey, "left")
@@ -616,6 +633,5 @@ function SQP:CreateIconSideSection(parent, typeKey, activatePreviewFn, yOffset)
         SQP:RefreshAllNameplates()
     end)
 
-    yOffset = yOffset - 26
-    return yOffset
+    return group
 end

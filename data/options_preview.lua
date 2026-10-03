@@ -28,13 +28,22 @@ function SQP:CreatePreviewSection(parent)
     local killTypeBtn = self:CreateStyledButton(previewFrame, "Kill", 46, 16)
     local lootTypeBtn = self:CreateStyledButton(previewFrame, "Loot", 46, 16)
     local pctTypeBtn  = self:CreateStyledButton(previewFrame, "%",   28, 16)
-    killTypeBtn:SetPoint("BOTTOMLEFT", previewFrame, "BOTTOM", -62, 4)
+    -- Mirror the framework tab row's gap below the divider, using its actual
+    -- divider region rather than this preview's inset bottom edge.
+    local divider = parent.divider
+    local dividerGap = parent.dividerGap or 10
+    if divider then
+        killTypeBtn:SetPoint("BOTTOMLEFT", divider, "TOP", -62, dividerGap)
+    else
+        killTypeBtn:SetPoint("BOTTOMLEFT", parent, "BOTTOM", -62, dividerGap + 2)
+    end
     lootTypeBtn:SetPoint("LEFT", killTypeBtn, "RIGHT", 4, 0)
     pctTypeBtn:SetPoint("LEFT",  lootTypeBtn, "RIGHT", 4, 0)
 
-    -- Mode caption: shows which nameplate integration mode is active
-    local modeCaption = previewFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    modeCaption:SetPoint("TOPRIGHT", previewFrame, "TOPRIGHT", -10, -6)
+    -- Mode caption: small "Preview — <style>" label at the banner's
+    -- top-left (the position the client's own settings preview uses).
+    local modeCaption = previewFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    modeCaption:SetPoint("TOPLEFT", previewFrame, "TOPLEFT", 10, -6)
     previewFrame.modeCaption = modeCaption
 
     -- Shared overlay references: assigned by the mock construction below or
@@ -57,10 +66,35 @@ function SQP:CreatePreviewSection(parent)
             wrapper:ClearAllPoints()
             wrapper:SetSize(380, 116)
             wrapper:SetPoint("TOP", previewFrame, "TOP", 0, -6)
+            -- The template ships its own options-chrome border and PREVIEW
+            -- label (atlas options_frame_child); the quest preview must show
+            -- only the nameplate, so drop that extra frame.
+            if wrapper.Border then wrapper.Border:Hide() end
+            if wrapper.Preview then wrapper.Preview:Hide() end
             wrapper:Show()
         end
     end
     previewFrame.plate = realPlate
+
+    local function HidePreviewDecorations()
+        local unit = realPlate and realPlate.UnitFrame
+        if not unit then return end
+        -- Forever 1.60.1 NamePlates.xml places these Blizzard decorations
+        -- to the left of the health bar. Suppress only this preview's copies;
+        -- live nameplates retain their classification and raid-target icons.
+        for _, key in ipairs({ "ClassificationFrame", "RaidTargetFrame" }) do
+            local decoration = unit[key]
+            if decoration then
+                if not decoration._sqpPreviewHidden then
+                    decoration._sqpPreviewHidden = true
+                    decoration:HookScript("OnShow", function(self) self:Hide() end)
+                end
+                decoration:Hide()
+            end
+        end
+    end
+    if realPlate then realPlate:HookScript("OnShow", HidePreviewDecorations) end
+    HidePreviewDecorations()
 
     -- Build the mock overlay only when the client's preview template is not
     -- available (e.g. the settings definitions are not loaded yet). Mock
@@ -308,6 +342,7 @@ function SQP:CreatePreviewSection(parent)
     -- Rebuilt when the integration mode changes the expected parent.
     local function EnsureRealOverlay()
         if not useReal or not realPlate or not realPlate.UnitFrame then return end
+        HidePreviewDecorations()
         local expectedParent = SQPSettings.unifiedNameplates == true and realPlate.UnitFrame or realPlate
         if questFrame and questFrame.GetParent and questFrame:GetParent() == expectedParent then
             return
@@ -577,12 +612,22 @@ function SQP:CreatePreviewSection(parent)
         end -- mock geometry
 
         if self.modeCaption then
+            -- Small label at the top-left of the banner (where the client's
+            -- own settings preview puts it); reports the live three-way
+            -- display style for the currently selected quest type.
             if SQPSettings.enabled == false then
-                self.modeCaption:SetText("|cff9a9a9aSQP disabled|r")
-            elseif SQP:UsesLevelChip(self.questType or "kill") then
-                self.modeCaption:SetText("|cff58be81Mode: Unified (level-style chip)|r")
+                self.modeCaption:SetText("|cff9a9a9aPreview — SQP disabled|r")
             else
-                self.modeCaption:SetText("|cff9a9a9aMode: Overlay (floating)|r")
+                local modeKey = self.questType or "kill"
+                local styleText
+                if SQP:UsesLevelChip(modeKey) then
+                    styleText = "Forever"
+                else
+                    local value = SQPSettings[modeKey .. "ShowIconBackground"]
+                    if value == nil then value = SQPSettings.showIconBackground end
+                    styleText = value == false and "Text" or "Classic"
+                end
+                self.modeCaption:SetText("|cff9a9a9aPreview — |r|cff58be81" .. styleText .. "|r")
             end
         end
 
@@ -626,11 +671,7 @@ function SQP:CreatePreviewSection(parent)
         end
 
         local function IsPreviewIconStyleEnabled(typeKey)
-            local value = SQPSettings[typeKey .. "ShowIconBackground"]
-            if value == nil then
-                value = SQPSettings.showIconBackground
-            end
-            return value ~= false
+            return SQP:GetDisplayStyle(typeKey) ~= "text"
         end
 
         -- Update quest type display
@@ -669,12 +710,15 @@ function SQP:CreatePreviewSection(parent)
         else
             -- Percent quest
             local percentIconMode = IsPreviewIconStyleEnabled("percent")
+            local unifiedType = SQP:UsesLevelChip("percent")
             if self.lootIcon then self.lootIcon:Hide() end
             if self.killIcon  then self.killIcon:Hide()  end
 
             if SQPSettings.showPercentIcon == true then
                 local pOW   = SQP:GetOutlineInfo("percent")
-                if percentIconMode then
+                -- The toggle hides only the "%" character; the number (and the
+                -- chip in unified mode) always stays. Mirrors quest.lua.
+                if percentIconMode or unifiedType then
                     -- Icon mode: jellybean + number + "%" at configured side
                     icon:Show()
                     self.iconText:SetText("75")
@@ -708,29 +752,30 @@ function SQP:CreatePreviewSection(parent)
                     end
                 end
             else
+                -- "%" hidden: the number must still render in every style —
+                -- icon mode keeps the jellybean, text mode shows the bare
+                -- number, and unified keeps the chip with the number only.
                 if self.percentIcon then self.percentIcon:Hide() end
                 if self.percentIconOutline then self.percentIconOutline:Hide() end
                 if percentIconMode then
                     icon:Show()
-                    self.iconText:SetText("75")
-                    if self.iconTextOutline then self.iconTextOutline:SetText("75") end
                 else
                     icon:Hide()
-                    self.iconText:SetText("")
-                    if self.iconTextOutline then self.iconTextOutline:SetText("") end
                 end
+                self.iconText:SetText("75")
+                if self.iconTextOutline then self.iconTextOutline:SetText("75") end
             end
         end
 
-        -- Unified mode shows the count in a level-style chip (no jellybean)
+        -- Unified mode shows the count in a level-style chip (no jellybean);
+        -- for percent quests the chip holds only the number and the "%" stays
+        -- outside per the side/offset options (handled above).
         if self.questChip then
             if SQP:UsesLevelChip(previewTypeKey) then
                 icon:Hide()
                 if previewTypeKey == "percent" then
-                    iconText:SetText("75%")
-                    if self.iconTextOutline then self.iconTextOutline:SetText("75%") end
-                    if self.percentIcon then self.percentIcon:Hide() end
-                    if self.percentIconOutline then self.percentIconOutline:Hide() end
+                    iconText:SetText("75")
+                    if self.iconTextOutline then self.iconTextOutline:SetText("75") end
                 end
                 -- Same updater as live plates; do not maintain a parallel size
                 -- path in the preview.
@@ -870,6 +915,49 @@ function SQP:CreatePreviewSection(parent)
     killTypeBtn:SetScript("OnClick", function() SelectType(2, previewFrame.activateKillMode) end)
     lootTypeBtn:SetScript("OnClick", function() SelectType(3, previewFrame.activateLootMode) end)
     pctTypeBtn:SetScript("OnClick", function() SelectType(4, previewFrame.activatePercentMode) end)
+
+    -- Hover previews: mousing over a type button shows that quest type in
+    -- the preview without committing to it; leaving restores the committed
+    -- selection. Click still navigates to that page's settings.
+    local committedType
+    local function HoverType(activate)
+        if not committedType then
+            committedType = previewFrame.questType or "kill"
+        end
+        activate()
+    end
+    local function RestoreCommitted()
+        if not committedType then return end
+        local restore = committedType
+        committedType = nil
+        if restore == "kill" then
+            previewFrame.activateKillMode()
+        elseif restore == "loot" then
+            previewFrame.activateLootMode()
+        elseif restore == "percent" then
+            previewFrame.activatePercentMode()
+        end
+    end
+    for _, pair in ipairs({
+        { killTypeBtn, previewFrame.activateKillMode },
+        { lootTypeBtn, previewFrame.activateLootMode },
+        { pctTypeBtn,  previewFrame.activatePercentMode },
+    }) do
+        local button, activate = pair[1], pair[2]
+        -- HookScript so the framework button hover highlight keeps working;
+        -- SetScript would have replaced it and killed the highlight.
+        button:HookScript("OnEnter", function() HoverType(activate) end)
+        button:HookScript("OnLeave", RestoreCommitted)
+    end
+    -- A committed click pins the new type so leaving cannot snap it back.
+    local function Commit(page, activate)
+        committedType = nil
+        SelectType(page, activate)
+        committedType = previewFrame.questType or "kill"
+    end
+    killTypeBtn:SetScript("OnClick", function() Commit(2, previewFrame.activateKillMode) end)
+    lootTypeBtn:SetScript("OnClick", function() Commit(3, previewFrame.activateLootMode) end)
+    pctTypeBtn:SetScript("OnClick", function() Commit(4, previewFrame.activatePercentMode) end)
 
     -- Initial update
     previewFrame:UpdatePreview()

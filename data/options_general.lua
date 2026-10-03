@@ -77,20 +77,31 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
 
         local Drops = _G.RGXDropdowns
         if Drops and type(Drops.CreateNestedDropdown) == "function" then
+            -- Three-way display mode: icon background, plain text, or the
+            -- native level chip. Storage stays backward compatible:
+            -- showIconBackground = icon/text toggle, unifiedNameplates = chip.
+            local function CurrentMode()
+                if SQPSettings.unifiedNameplates == true then return "chip" end
+                if SQPSettings.showIconBackground == false then return "text" end
+                return "icon"
+            end
             local dd = Drops:CreateNestedDropdown(c, {
                 label = "Background style",
                 width = 300,
                 buttonWidth = 290,
                 triggerStyle = "retail",
-                value = (SQPSettings.unifiedNameplates == true),
+                value = CurrentMode(),
                 items = {
-                    { text = "Floating icon (default)", value = false },
-                    { text = "Level chip (native)",     value = true  },
+                    { text = "Classic (default)", value = "icon" },
+                    { text = "Text",                   value = "text" },
+                    { text = "Forever",               value = "chip" },
                 },
                 onChange = function(value)
-                    SQP:SetSetting('unifiedNameplates', value == true)
+                    SQP:SetSetting('unifiedNameplates', value == "chip")
+                    SQP:SetSetting('showIconBackground', value ~= "text")
                     for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
                         SQP:SetSetting(typeKey .. "LevelChip", nil)
+                        SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
                         local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
                         if update then update() end
                     end
@@ -104,7 +115,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                 if dd.label then dd.label:SetTextColor(0.345, 0.745, 0.506) end
                 dd:SetPoint("TOPLEFT", c, "TOPLEFT", 8, -8)
                 dd:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -8)
-                SQP:SetControlTooltip(dd, "Pick the quest display background. Level chip renders the count in a native level-style backdrop on the nameplate.")
+                SQP:SetControlTooltip(dd, "Pick every quest type's display: Classic icon, Text, or the Forever level-frame style.")
                 SQP.optionControls.unifiedDropdown = dd
             end
         end
@@ -302,8 +313,13 @@ local function BuildAnimationPage(page)
         -- Selecting the toast card's preview is the only way the toast replays;
         -- typing random animation options must not fire it. Toast stays
         -- selected only while this tab is open and the feature is enabled.
-        local toastPreview = SQP:CreateStyledButton(c, "Preview toast", 88, 20)
-        flow:Add(toastPreview)
+        -- The button sits centered on its own row via a full-width host so
+        -- the flow layout keeps its vertical rhythm.
+        local toastPreviewHost = CreateFrame("Frame", nil, c)
+        toastPreviewHost:SetHeight(20)
+        local toastPreview = SQP:CreateStyledButton(toastPreviewHost, "Preview toast", 88, 20)
+        toastPreview:SetPoint("TOP", toastPreviewHost, "TOP", 0, 0)
+        flow:Add(toastPreviewHost, { fill = true })
         SQP.optionControls.toastPreviewButton = toastPreview
         toastPreview:SetScript("OnClick", function()
             if SQP.previewFrame and SQP.previewFrame.questFrame then
