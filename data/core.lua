@@ -495,7 +495,7 @@ function SQP:SetupMinimapButton()
 
     self.minimapBtn = MM:Create({
         name         = "SQP_MinimapButton",
-        icon         = self.ICON_TEXTURE or "",
+        icon         = "Interface\\AddOns\\RGX-Framework\\media\\round.tga",
         defaultAngle = self.defaultMinimapAngle,
         storage      = SQPSettings,  -- Uses database proxy
         angleKey     = "minimapAngle",

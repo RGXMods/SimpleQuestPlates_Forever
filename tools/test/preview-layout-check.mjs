@@ -71,12 +71,18 @@ lua.doStringSync(`
   function methods:CreateAnimation()return widget(self)end
   function methods:IsPlaying()return false end
   function methods:GetParent()return self.parent end
+  function methods:GetFrameLevel()return self.frameLevel or 5 end
+  function methods:SetFrameLevel(v)self.frameLevel=v end
   function methods:GetMinMaxValues()return self.min or 0,self.max or 100 end
   function methods:SetMinMaxValues(min,max)self.min=min self.max=max end
   function methods:GetValueStep()return self.step or 1 end
   function methods:SetValueStep(v)self.step=v end
   function methods:GetThumbTexture()return nil end
-  CreateFrame=function(kind,_,parent)local w=widget(parent)w.kind=kind return w end
+  CreateFrame=function(kind,_,parent,template)
+    local w=widget(parent)w.kind=kind
+    if template=='NamePlatePreviewTemplate'then w.NamePlate=widget(w)w.NamePlate.kind='Button' end
+    return w
+  end
   assert(loadstring(layout))('framework',UI)
   SQP={L={},optionControls={},DEFAULTS={scale=1.1,fontSize=12,anchor='RIGHT',relativeTo='LEFT',offsetX=0,offsetY=0,killIconSide='left',lootIconSide='right',killIconSize=12,lootIconSize=14,percentIconSize=8,killIconOffsetX=2,killIconOffsetY=15,lootIconOffsetX=-38,lootIconOffsetY=16,percentIconOffsetX=18,percentIconOffsetY=0},RefreshAllNameplates=noop,UpdateQuestFont=noop,GetOutlineInfo=function()return 0 end,IsAnimationEnabled=function()return false end,ApplyPulseDuration=noop,GetAnimationDuration=function()return 1 end}
   SQPSettings={scale=1.1,showQuestMarker=true,unifiedNameplates=false}
@@ -118,6 +124,7 @@ for(const [name,body]of [
  ['preview does not distort reference health geometry',`local plate=CreateFrame('Frame') plate:SetSize(320,90) local unit=CreateFrame('Frame',nil,plate) local bar=CreateFrame('StatusBar',nil,unit) bar:SetSize(290,28) plate.UnitFrame=unit unit.HealthBarsContainer=bar unit.healthBar=bar bar.healthBar=bar SQP.ActiveNameplates={[plate]=true} local preview=SQP:CreatePreviewSection(host) local health for _,child in ipairs(preview.nameplate.children)do if child.kind=='StatusBar'then health=child end end assert(health and health:GetWidth()==290 and health:GetHeight()==28,'preview clamps health dimensions independently of its anchor')`],
  ['preview and live task badge baselines agree',`local plate=CreateFrame('Frame') SQP.ActiveNameplates={} SQP:CreateQuestPlate(plate) local live=SQP.QuestPlates[plate] local preview=SQP:CreatePreviewSection(host) for _,key in ipairs({'kill','loot'})do local a=live[key..'Icon'] local b=preview[key..'Icon'] assert(a.w==SQP.DEFAULTS[key..'IconSize'] and a.w==b.w,'badge size baseline differs') for _,index in ipairs({1,3,4,5})do assert(a.point[index]==b.point[index],'badge anchor baseline differs')end end assert(live.levelChip,'chip texture missing in floating mode')`],
  ['level chip preview renders all quest types',`SQPSettings.unifiedNameplates=false SQP.ActiveNameplates={} local p=SQP:CreatePreviewSection(host) for _,key in ipairs({'kill','loot','percent'})do SQPSettings[key..'LevelChip']=true p.questType=key p:UpdatePreview() assert(p.questChip:IsShown() and p.questChip.w>10 and not p.icon:IsShown(),'chip absent for '..key)end`],
+ ['level chip is a frame with background artwork, not a highlight',`local parent=CreateFrame('Frame') local chip=SQP:CreateLevelChip(parent) assert(chip.kind=='Frame' and chip.background and chip.background.parent==chip,'chip must own a frame background') assert(chip:GetFrameLevel()==parent:GetFrameLevel(),'background must not occlude count text') assert(chip.glow==nil,'frame correction must not add a selection highlight')`],
  ['canonical defaults preserve explicit offsets and inherit General font',`SQPSettings.offsetX=0 SQPSettings.fontSize=17 assert(SQP:GetSettingValue('offsetX')==0) for _,key in ipairs({'kill','loot','percent'})do assert(SQP:GetSettingBaseline(key..'FontSize')==17,'font reset differs from General') end SQPSettings.killIconSize=25 assert(SQP:GetSettingValue('killIconSize')==25 and SQP:GetSettingBaseline('killIconSize')==12)`],
  ['control defaults use canonical baselines',`assert(loadstring(options_widgets))('SQP',SQP) RGXUI=UI UI.CreateSlider=function(_,_,opts)return opts end local s=SQP:CreateStyledSlider(host,{key='killIconSize',default=999}) assert(s.default==12,'slider default drift') local f=SQP:CreateStyledSlider(host,{key='percentFontSize',default=8}) assert(f.default==17,'percent default ignores General font')`],
  ['level chip is selectable beside Icon and Text',`RGXUI=UI SQP:CreateDisplayStyleSection(host,'kill',nil,-8) local found for _,child in ipairs(host.children)do if child.text=='Level chip'then found=child end end assert(found and found.scripts.OnClick,'missing chip selection') found.scripts.OnClick() assert(SQP:UsesLevelChip('kill'))`],
@@ -148,6 +155,7 @@ for(const [name,body]of [
     NamePlatePreviewMixin={} NamePlateDriverFrame={}
     local p=SQP:CreatePreviewSection(host)
     assert(p.plate,'client preview template not adopted')
+    assert(p.plate.kind=='Button','preview plate is not the wrapper child button')
     local unit=CreateFrame('Frame') local container=CreateFrame('Frame',nil,unit)
     local bar=CreateFrame('StatusBar',nil,container) container.healthBar=bar
     p.plate.UnitFrame=unit unit.HealthBarsContainer=container unit.healthBar=bar

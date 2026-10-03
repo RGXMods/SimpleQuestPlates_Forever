@@ -17,7 +17,7 @@ function SQP:CreatePreviewSection(parent)
     -- Forever UI source) or, when that template is unavailable, a mock
     -- drawn with the client's verified Classic nameplate constants.
     local previewFrame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    previewFrame:SetHeight(82)
+    previewFrame:SetHeight(124)
     previewFrame:SetPoint("TOPLEFT",  parent, "TOPLEFT",  14, -3)
     previewFrame:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, -3)
     -- The preview is a copy of the Blizzard nameplate, not a dialog box.
@@ -46,14 +46,18 @@ function SQP:CreatePreviewSection(parent)
     local useReal = false
     local realPlate
     if type(NamePlatePreviewMixin) == "table" and NamePlateDriverFrame ~= nil then
-        local okReal, candidate = pcall(CreateFrame, "Button", nil, previewFrame, "NamePlatePreviewTemplate")
-        if okReal and candidate then
-            realPlate = candidate
+        -- NamePlatePreviewTemplate is a wrapper Frame; the driver-registered
+        -- nameplate is its NamePlate child Button (whose OnShow registers the
+        -- "preview" token, per the client's own settings preview). Instantiate
+        -- the wrapper and adopt the child as the preview plate.
+        local okReal, wrapper = pcall(CreateFrame, "Frame", nil, previewFrame, "NamePlatePreviewTemplate")
+        if okReal and wrapper and wrapper.NamePlate then
+            realPlate = wrapper.NamePlate
             useReal = true
-            realPlate:ClearAllPoints()
-            realPlate:SetPoint("CENTER", previewFrame, "CENTER", 0, 10)
-            realPlate:Show()
-            previewFrame:SetHeight(96)
+            wrapper:ClearAllPoints()
+            wrapper:SetSize(380, 116)
+            wrapper:SetPoint("TOP", previewFrame, "TOP", 0, -6)
+            wrapper:Show()
         end
     end
     previewFrame.plate = realPlate
