@@ -58,6 +58,30 @@ function SQP:CreatePercentOptions(content)
             SQP:RefreshAllNameplates()
         end)
         SQP:SetControlTooltip(showFrame, "Display toggle: show or hide the percent sign on quest nameplates.")
+
+        -- Side buttons share the checkbox's row (no extra label): the % sign
+        -- goes to the left or right of the count.
+        local sideGroup = _G.RGXUI:CreateButtonGroup(c, { "Left", "Right" },
+            { buttonWidth = 60, height = 20, gap = 6 })
+        sideGroup:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, yOffset - 1)
+        local sideButtons = { left = sideGroup.buttons[1], right = sideGroup.buttons[2] }
+        local function UpdateSideButtons()
+            local current = SQPSettings.percentSignSide or "right"
+            for value, btn in pairs(sideButtons) do
+                btn:SetAlpha(current == value and 1 or 0.6)
+            end
+        end
+        self.optionControls.percentSignSideButtons = sideButtons
+        self.optionControls.updatePercentSignSideButtons = UpdateSideButtons
+        UpdateSideButtons()
+        for value, btn in pairs(sideButtons) do
+            btn:SetScript("OnClick", function()
+                SQP:SetSetting('percentSignSide', value)
+                UpdateSideButtons()
+                ActivatePercent()
+                SQP:RefreshAllNameplates()
+            end)
+        end
         yOffset = yOffset - 22
 
         yOffset = self:CreateDisplayStyleSection(c, "percent", ActivatePercent, yOffset)
@@ -181,34 +205,6 @@ function SQP:CreatePercentOptions(content)
         yOffset = MakeSlider(c, "Size",     "percentIconSize",    8,   8,  40, yOffset)
         yOffset = MakeSlider(c, "Offset X", "percentIconOffsetX",  0, -80, 80, yOffset)
         yOffset = MakeSlider(c, "Offset Y", "percentIconOffsetY",  0, -80, 80, yOffset)
-
-        local sideHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        SQP:ApplyDefaultFont(sideHeader)
-        sideHeader:SetPoint("TOPLEFT", 8, yOffset)
-        sideHeader:SetText("|cff58be81Percent Sign Side|r")
-        yOffset = yOffset - 18
-
-        local sideGroup = _G.RGXUI:CreateButtonGroup(c, { "Left", "Right" },
-            { buttonWidth = 68, height = 22, gap = 8, y = yOffset })
-        local sideButtons = { left = sideGroup.buttons[1], right = sideGroup.buttons[2] }
-        local function UpdateSideButtons()
-            local current = SQPSettings.percentSignSide or "right"
-            for value, btn in pairs(sideButtons) do
-                btn:SetAlpha(current == value and 1 or 0.6)
-            end
-        end
-        self.optionControls.percentSignSideButtons = sideButtons
-        self.optionControls.updatePercentSignSideButtons = UpdateSideButtons
-        UpdateSideButtons()
-        for value, btn in pairs(sideButtons) do
-            btn:SetScript("OnClick", function()
-                SQP:SetSetting('percentSignSide', value)
-                UpdateSideButtons()
-                ActivatePercent()
-                SQP:RefreshAllNameplates()
-            end)
-        end
-        yOffset = yOffset - 30
 
         yOffset = yOffset - 10
         local resetBtn = self:CreateStyledButton(c, "Reset Percent Settings", 160, 22)

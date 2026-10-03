@@ -919,8 +919,10 @@ function SQP:CreatePreviewSection(parent)
         { pctTypeBtn,  previewFrame.activatePercentMode },
     }) do
         local button, activate = pair[1], pair[2]
-        button:SetScript("OnEnter", function() HoverType(activate) end)
-        button:SetScript("OnLeave", RestoreCommitted)
+        -- HookScript so the framework button hover highlight keeps working;
+        -- SetScript would have replaced it and killed the highlight.
+        button:HookScript("OnEnter", function() HoverType(activate) end)
+        button:HookScript("OnLeave", RestoreCommitted)
     end
     -- A committed click pins the new type so leaving cannot snap it back.
     local function Commit(page, activate)

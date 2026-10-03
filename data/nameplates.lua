@@ -304,12 +304,11 @@ function SQP:UpdateQuestToast(questFrame, replay)
         or not questFrame.toastSelected then
         if group:IsPlaying() then group:Stop() end
         questFrame.qmark:SetAlpha(0)
-    else
-        group:SetLooping(questFrame.isPreview and "REPEAT" or "NONE")
-        if replay or (questFrame.isPreview and not group:IsPlaying()) then
-            if group:IsPlaying() then group:Stop() end
-            group:Play()
-        end
+    elseif replay then
+        -- One play per explicit request (the Preview toast button or a live
+        -- plate show); ordinary preview/layout refreshes must not restart it.
+        if group:IsPlaying() then group:Stop() end
+        group:Play()
     end
 end
 

@@ -354,8 +354,8 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
         end
     end)
 
-    -- Breathing room below the dropdown before the next section begins.
-    yOffset = yOffset - 52
+    -- Comfortable-but-tight gap below the dropdown before the next section.
+    yOffset = yOffset - 40
 
     return yOffset
 end

@@ -133,7 +133,7 @@ SQP.DEFAULTS = {
     showMessages = true,
     showKillIcon = true,
     showLootIcon = true,
-    showPercentIcon = true,
+    showPercentIcon = false,
     -- Per-type fonts (kill/loot/percent) inherit the global font settings by
     -- default; per-type keys only exist once a user overrides them on the
     -- Kill / Loot / Percent tabs.
