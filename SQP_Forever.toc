@@ -6,7 +6,7 @@
 ## Category: RealmGX
 ## Group: RealmGX
 ## SavedVariables: SQPForeverSettings
-## IconTexture: Interface\AddOns\RGX-Framework\media\square.tga
+## IconTexture: Interface\AddOns\SQP_Forever\media\logo.tga
 ## DefaultState: Enabled
 ## RequiredDeps: RGX-Framework
 
