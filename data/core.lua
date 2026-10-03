@@ -82,7 +82,7 @@ local function GetAddOnMetadataCompat(name, field)
     return nil
 end
 
-SQP.VERSION = "2.1.7-forever.beta.6" -- Addon version (also in TOC file)
+SQP.VERSION = "2.1.7-forever.beta.7" -- Addon version (also in TOC file)
 SQP.NAME = GetAddOnMetadataCompat(addonName, "Title") or addonName or "SimpleQuestPlates"
 SQP.AUTHOR = GetAddOnMetadataCompat(addonName, "Author") or "DonnieDice"
 SQP.LOCALE = GetLocale()
@@ -157,9 +157,7 @@ SQP.DEFAULTS = {
     lootAnimationIntensity = 100,
     percentAnimationIntensity = 100,
     showIconBackground = true, -- Legacy shared display style toggle
-    killShowIconBackground = true,
-    lootShowIconBackground = true,
-    percentShowIconBackground = true,
+    -- Per-type background overrides are absent by default and inherit Global.
     killIconOffsetX = 2,
     killIconOffsetY = 15,
     lootIconOffsetX = -38,
@@ -459,9 +457,9 @@ end
 function SQP:SetSetting(key, value)
 	if not key then return end
 
-	-- Persist booleans as explicit true/false (never nil)
+	-- Explicit values stay boolean; nil deliberately clears an override.
 	local defaultValue = self.DEFAULTS and self.DEFAULTS[key]
-	if type(defaultValue) == "boolean" then
+	if value ~= nil and type(defaultValue) == "boolean" then
 		value = value and true or false
 	end
 

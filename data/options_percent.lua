@@ -59,29 +59,7 @@ function SQP:CreatePercentOptions(content)
         end)
         SQP:SetControlTooltip(showFrame, "Display toggle: show or hide the percent sign on quest nameplates.")
 
-        -- Side buttons share the checkbox's row (no extra label): the % sign
-        -- goes to the left or right of the count.
-        local sideGroup = _G.RGXUI:CreateButtonGroup(c, { "Left", "Right" },
-            { buttonWidth = 60, height = 20, gap = 6 })
-        sideGroup:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, yOffset - 1)
-        local sideButtons = { left = sideGroup.buttons[1], right = sideGroup.buttons[2] }
-        local function UpdateSideButtons()
-            local current = SQPSettings.percentSignSide or "right"
-            for value, btn in pairs(sideButtons) do
-                btn:SetAlpha(current == value and 1 or 0.6)
-            end
-        end
-        self.optionControls.percentSignSideButtons = sideButtons
-        self.optionControls.updatePercentSignSideButtons = UpdateSideButtons
-        UpdateSideButtons()
-        for value, btn in pairs(sideButtons) do
-            btn:SetScript("OnClick", function()
-                SQP:SetSetting('percentSignSide', value)
-                UpdateSideButtons()
-                ActivatePercent()
-                SQP:RefreshAllNameplates()
-            end)
-        end
+        self:CreateIconSideSection(c, "percent", ActivatePercent, yOffset)
         yOffset = yOffset - 22
 
         yOffset = self:CreateDisplayStyleSection(c, "percent", ActivatePercent, yOffset)
@@ -114,9 +92,7 @@ function SQP:CreatePercentOptions(content)
             SQP:SetSetting('percentColor', {unpack(pctDefault)})
             sw:SetColorTexture(unpack(pctDefault)); SQP:RefreshAllNameplates()
         end)
-        colorReset:ClearAllPoints()
-        colorReset:SetPoint("TOP", colorBtn, "TOP", 0, 0)
-        colorReset:SetPoint("RIGHT", c, "RIGHT", -8, 0)
+        _G.RGXUI:AnchorRowReset(c, colorReset, colorBtn)
 
         colorBtn:SetScript("OnClick", function()
             ActivatePercent()

@@ -445,11 +445,7 @@ function SQP:UpdateQuestIcon(plate, unitID)
     local displayText = "?"
     local displayColor = {1, 1, 1} -- Default white
     local function IsIconStyleEnabled(typeKey)
-        local value = SQPSettings[typeKey .. "ShowIconBackground"]
-        if value == nil then
-            value = SQPSettings.showIconBackground
-        end
-        return value ~= false
+        return self:GetDisplayStyle(typeKey) ~= "text"
     end
 
     if progressGlob and questType ~= 2 then

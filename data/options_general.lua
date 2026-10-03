@@ -92,9 +92,9 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                 triggerStyle = "retail",
                 value = CurrentMode(),
                 items = {
-                    { text = "Floating icon (default)", value = "icon" },
-                    { text = "Text only",              value = "text" },
-                    { text = "Level chip (native)",    value = "chip" },
+                    { text = "Classic (default)", value = "icon" },
+                    { text = "Text",                   value = "text" },
+                    { text = "Forever",               value = "chip" },
                 },
                 onChange = function(value)
                     SQP:SetSetting('unifiedNameplates', value == "chip")
@@ -115,7 +115,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                 if dd.label then dd.label:SetTextColor(0.345, 0.745, 0.506) end
                 dd:SetPoint("TOPLEFT", c, "TOPLEFT", 8, -8)
                 dd:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -8)
-                SQP:SetControlTooltip(dd, "Pick the quest display background for every quest type. Text only drops the icon background and shows the raw count; Level chip renders the count in a native level-style backdrop on the nameplate.")
+                SQP:SetControlTooltip(dd, "Pick every quest type's display: Classic icon, Text, or the Forever level-frame style.")
                 SQP.optionControls.unifiedDropdown = dd
             end
         end

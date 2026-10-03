@@ -53,7 +53,7 @@ function SQP:CreateOptionsPanel()
 
     local function Build()
         return UI:CreateOptionsPanel({
-        addonName    = "SimpleQuestPlates",
+        addonName    = addonName,
         theme        = BrandTheme,
         title        = SQP.NAME,
         sidebarTitle = (SQP.NAME:gsub("%s*%b()", "")),
@@ -85,6 +85,16 @@ function SQP:CreateOptionsPanel()
                       SQP.previewFrame.clearTypeSelection()
                   end
               end },
+            { text = "Profiles", content = WithBrand(function(f)
+                if type(UI.CreateProfilesPanel) == "function" then
+                    UI:CreateProfilesPanel(f, { db = SQP.db })
+                else
+                    local label = UI:CreateLabel(f, { text = "Profiles need the RGX-Framework beta. Enable its beta channel in your addon manager.", width = 500 })
+                    label:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -8)
+                end
+            end), onSelect = function()
+                if SQP.previewFrame and SQP.previewFrame.clearTypeSelection then SQP.previewFrame.clearTypeSelection() end
+            end },
         },
         })
     end

@@ -28,7 +28,15 @@ function SQP:CreatePreviewSection(parent)
     local killTypeBtn = self:CreateStyledButton(previewFrame, "Kill", 46, 16)
     local lootTypeBtn = self:CreateStyledButton(previewFrame, "Loot", 46, 16)
     local pctTypeBtn  = self:CreateStyledButton(previewFrame, "%",   28, 16)
-    killTypeBtn:SetPoint("BOTTOMLEFT", previewFrame, "BOTTOM", -62, 4)
+    -- Mirror the framework tab row's gap below the divider, using its actual
+    -- divider region rather than this preview's inset bottom edge.
+    local divider = parent.divider
+    local dividerGap = parent.dividerGap or 10
+    if divider then
+        killTypeBtn:SetPoint("BOTTOMLEFT", divider, "TOP", -62, dividerGap)
+    else
+        killTypeBtn:SetPoint("BOTTOMLEFT", parent, "BOTTOM", -62, dividerGap + 2)
+    end
     lootTypeBtn:SetPoint("LEFT", killTypeBtn, "RIGHT", 4, 0)
     pctTypeBtn:SetPoint("LEFT",  lootTypeBtn, "RIGHT", 4, 0)
 
@@ -67,6 +75,26 @@ function SQP:CreatePreviewSection(parent)
         end
     end
     previewFrame.plate = realPlate
+
+    local function HidePreviewDecorations()
+        local unit = realPlate and realPlate.UnitFrame
+        if not unit then return end
+        -- Forever 1.60.1 NamePlates.xml places these Blizzard decorations
+        -- to the left of the health bar. Suppress only this preview's copies;
+        -- live nameplates retain their classification and raid-target icons.
+        for _, key in ipairs({ "ClassificationFrame", "RaidTargetFrame" }) do
+            local decoration = unit[key]
+            if decoration then
+                if not decoration._sqpPreviewHidden then
+                    decoration._sqpPreviewHidden = true
+                    decoration:HookScript("OnShow", function(self) self:Hide() end)
+                end
+                decoration:Hide()
+            end
+        end
+    end
+    if realPlate then realPlate:HookScript("OnShow", HidePreviewDecorations) end
+    HidePreviewDecorations()
 
     -- Build the mock overlay only when the client's preview template is not
     -- available (e.g. the settings definitions are not loaded yet). Mock
@@ -314,6 +342,7 @@ function SQP:CreatePreviewSection(parent)
     -- Rebuilt when the integration mode changes the expected parent.
     local function EnsureRealOverlay()
         if not useReal or not realPlate or not realPlate.UnitFrame then return end
+        HidePreviewDecorations()
         local expectedParent = SQPSettings.unifiedNameplates == true and realPlate.UnitFrame or realPlate
         if questFrame and questFrame.GetParent and questFrame:GetParent() == expectedParent then
             return
@@ -592,11 +621,11 @@ function SQP:CreatePreviewSection(parent)
                 local modeKey = self.questType or "kill"
                 local styleText
                 if SQP:UsesLevelChip(modeKey) then
-                    styleText = "Level chip"
+                    styleText = "Forever"
                 else
                     local value = SQPSettings[modeKey .. "ShowIconBackground"]
                     if value == nil then value = SQPSettings.showIconBackground end
-                    styleText = value == false and "Text only" or "Floating icon"
+                    styleText = value == false and "Text" or "Classic"
                 end
                 self.modeCaption:SetText("|cff9a9a9aPreview — |r|cff58be81" .. styleText .. "|r")
             end
@@ -642,11 +671,7 @@ function SQP:CreatePreviewSection(parent)
         end
 
         local function IsPreviewIconStyleEnabled(typeKey)
-            local value = SQPSettings[typeKey .. "ShowIconBackground"]
-            if value == nil then
-                value = SQPSettings.showIconBackground
-            end
-            return value ~= false
+            return SQP:GetDisplayStyle(typeKey) ~= "text"
         end
 
         -- Update quest type display

@@ -13,6 +13,7 @@ const lua=await Lua.create();
 const core=readFileSync(`${root}/core.lua`,'utf8');
 lua.ctx.baselines=core.slice(core.indexOf('function SQP:GetSettingBaseline'),core.indexOf('-- Declare defaults'));
 lua.ctx.defaults=core.slice(core.indexOf('SQP.DEFAULTS = {'),core.indexOf('SQP.defaultMinimapAngle'));
+lua.ctx.settingSetter=core.slice(core.indexOf('function SQP:SetSetting'),core.indexOf('-- Reset settings to default'));
 for(const name of ['options_general','options_preview','options_widgets','options_kill','options_loot','options_percent','nameplates'])lua.ctx[name]=readFileSync(`${root}/${name}.lua`,'utf8');
 lua.ctx.layout=readFileSync(join(framework,'modules/ui/layout.lua'),'utf8');
 let failed=0;
@@ -40,7 +41,8 @@ lua.doStringSync(`
   function methods:SetPoint(point,relative,relativePoint,x,y)
     if type(relative)=='number'then x,y=relative,relativePoint relative=self.parent relativePoint=point end
     relative=relative or self.parent relativePoint=relativePoint or point x=x or 0 y=y or 0
-    self.point={point,relative,relativePoint,x,y}
+     self.point={point,relative,relativePoint,x,y}
+     self.anchorCount=(self.anchorCount or 0)+1
     self.y=y
     if relativePoint=='BOTTOMLEFT'or relativePoint=='BOTTOMRIGHT'then
       self.y=-relative:GetHeight()+y
@@ -48,14 +50,20 @@ lua.doStringSync(`
     end
   end
   function methods:GetPoint()return unpack(self.point or {})end
-  function methods:ClearAllPoints()self.point=nil end
+   function methods:ClearAllPoints()self.point=nil self.anchorCount=0 end
   function methods:SetAllPoints(relative)self.all=relative or self.parent self.w=self.all.w self.h=self.all.h self.y=0 end
   function methods:SetScript(k,fn)self.scripts[k]=fn end
-  function methods:HookScript(k,fn)self.scripts[k]=fn end
+   function methods:HookScript(k,fn)
+     local previous=self.scripts[k]
+     self.scripts[k]=function(self,...)if previous then previous(self,...)end fn(self,...)end
+   end
   function methods:SetText(t)self.text=t end
   function methods:GetText()return self.text end
   function methods:IsShown()return self.shown end
-  function methods:Show()self.shown=true end
+   function methods:Show()
+     local changed=not self.shown self.shown=true
+     if changed and self.scripts.OnShow then self.scripts.OnShow(self)end
+   end
   function methods:Hide()self.shown=false end
   function methods:SetShown(s)self.shown=s end
   function methods:SetChecked(v)self.checked=v end
@@ -118,6 +126,31 @@ lua.doStringSync(`
   host=widget(nil)
 `);
 for(const [name,body]of [
+ ['Forever changes background without inheriting Text ratios',`
+    NamePlatePreviewMixin=nil NamePlateDriverFrame=nil
+    SQPSettings.killLevelChip=true SQPSettings.killShowIconBackground=false
+    local p=SQP:CreatePreviewSection(host) p.questType='kill' p:UpdatePreview()
+    assert(p.questChip:IsShown() and p.iconText:GetText()=='5','Forever incorrectly rendered Text ratio '..tostring(p.iconText:GetText()))
+    SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil
+ `],
+ ['clearing per-type style restores global inheritance rather than forcing Text',`
+    local previous=SQP.SetSetting
+    assert(loadstring(settingSetter))('SQP',SQP)
+    for _,key in ipairs({'kill','loot','percent'})do
+      SQP:SetSetting(key..'ShowIconBackground',false)
+      SQP:SetSetting(key..'ShowIconBackground',nil)
+      assert(SQPSettings[key..'ShowIconBackground']==nil,'style override cleared to false for '..key)
+    end
+    SQP.SetSetting=previous
+ `],
+ ['preview type buttons mirror the framework divider gap',`
+    local banner=CreateFrame('Frame') banner.divider=CreateFrame('Frame',nil,banner) banner.dividerGap=10
+    local p=SQP:CreatePreviewSection(banner)
+    local kill
+    for _,child in ipairs(p.children)do if child.text=='Kill'then kill=child end end
+    assert(kill and kill.point[2]==banner.divider and kill.point[3]=='TOP','type buttons are not anchored to divider')
+    assert(kill.point[5]==banner.dividerGap,'preview buttons do not mirror framework tab spacing')
+ `],
  ['toast reset never overlaps size slider',`SQP:CreateAnimationOptions(host) local s=SQP.optionControls.questMarkerSize local b=SQP.optionControls.resetAllAnimations assert(b.y <= s.y-s.h-8,'reset overlaps Toast Size: button top='..b.y..', slider bottom='..(s.y-s.h))`],
  ['reset all animation settings includes per-type switches',`SQPSettings.killAnimateMain=true SQPSettings.lootAnimateMain=true SQPSettings.percentAnimateMain=true SQPSettings.toastDuration=2.5 SQP.optionControls.resetAllAnimations.scripts.OnClick() for _,key in ipairs({'killAnimateMain','lootAnimateMain','percentAnimateMain','toastDuration','questMarkerSize','toastHeight'})do assert(SQPSettings[key]==SQP.DEFAULTS[key],'animation reset missed '..key)end`],
  ['preview survives unavailable plate coordinates',`local plate=CreateFrame('Frame') local unit=CreateFrame('Frame',nil,plate) local bar=CreateFrame('Frame',nil,unit) plate.UnitFrame=unit unit.HealthBarsContainer=bar unit.healthBar=bar bar.healthBar=bar plate.GetLeft=function()error('live plate coordinates restricted')end SQP.ActiveNameplates={[plate]=true} SQP:CreatePreviewSection(host)`],
@@ -168,6 +201,39 @@ for(const [name,body]of [
       end
     end
  `],
+ ['style cycles restore preview state for Classic Text and Forever',`
+    SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
+    SQPSettings.showPercentIcon=true SQP.ActiveNameplates={} SQP.QuestPlates={}
+    NamePlatePreviewMixin=nil NamePlateDriverFrame=nil
+    for _,key in ipairs({'kill','loot','percent'})do
+      SQPSettings[key..'LevelChip']=nil SQPSettings[key..'ShowIconBackground']=nil
+      local p=SQP:CreatePreviewSection(host) SQP.previewFrame=p p.questType=key
+      SQP:CreateDisplayStyleSection(host,key,function()p:UpdatePreview()end,-8)
+      local dd=SQP.optionControls[key..'ShowIconBackgroundStyleDropdown']
+      dd.opts.onChange('text')
+      assert(not p.icon:IsShown() and not p.questChip:IsShown(),'Text retained frame for '..key)
+      dd.opts.onChange('icon')
+      assert(p.icon:IsShown() and not p.questChip:IsShown(),'Classic was not restored for '..key)
+      dd.opts.onChange('chip')
+      assert(not p.icon:IsShown() and p.questChip:IsShown(),'Forever was not restored for '..key)
+      dd.opts.onChange('text'); dd.opts.onChange('icon')
+      assert(p.icon:IsShown() and p.iconText:GetText()~='','Classic text/icon missing after cycle for '..key)
+    end
+    SQP.previewFrame=nil SQPSettings.showPercentIcon=false
+ `],
+ ['side controls share the Show Icon row on all three pages',`
+    for _,key in ipairs({'kill','loot','percent'})do
+      local sideKey=key=='percent' and 'percentSignSide' or key..'IconSide'
+      local title=key:sub(1,1):upper()..key:sub(2)
+      SQP['Create'..title..'Options'](SQP,CreateFrame('Frame'))
+      local buttons=SQP.optionControls[sideKey..'Buttons']
+      local group=buttons.left:GetParent()
+      assert(group:GetParent()==SQP.optionControls['show'..title..'Icon']:GetParent():GetParent(),'side controls are on another card')
+      assert(group.point[1]=='TOPRIGHT' and group.anchorCount==1,'inline group retains its old center anchor')
+      buttons.left.scripts.OnClick(); assert(SQPSettings[sideKey]=='left')
+      buttons.right.scripts.OnClick(); assert(SQPSettings[sideKey]=='right')
+    end
+ `],
  ['fallback slider does not recurse and accepts both call forms',`RGXUI=nil local store={amount=12} local s=SQP:CreateStyledSlider(host,{key='amount',storage=store,min=0,max=40,step=1,default=0}) s.SetValue(24) assert(store.amount==24) s:SetValue(30) assert(store.amount==30)`],
  ['client preview template anchors through the live path',`
     NamePlatePreviewMixin={} NamePlateDriverFrame={}
@@ -176,14 +242,24 @@ for(const [name,body]of [
     assert(p.plate.kind=='Button','preview plate is not the wrapper child button')
     local unit=CreateFrame('Frame') local container=CreateFrame('Frame',nil,unit)
     local bar=CreateFrame('StatusBar',nil,container) container.healthBar=bar
-    p.plate.UnitFrame=unit unit.HealthBarsContainer=container unit.healthBar=bar
-    p:UpdatePreview()
+     p.plate.UnitFrame=unit unit.HealthBarsContainer=container unit.healthBar=bar
+     unit.ClassificationFrame=CreateFrame('Frame',nil,unit)
+     unit.RaidTargetFrame=CreateFrame('Frame',nil,unit)
+     p:UpdatePreview()
+     for _,key in ipairs({'ClassificationFrame','RaidTargetFrame'})do
+       assert(not unit[key]:IsShown(),'preview decoration was not hidden: '..key)
+       unit[key]:Show()
+       assert(not unit[key]:IsShown(),'Blizzard re-show brought back decoration: '..key)
+     end
     local overlay=SQP.QuestPlates[p.plate]
     assert(overlay,'overlay not built through the live factory')
     assert(overlay.isPreview,'preview overlay not flagged')
     assert(overlay.icon.point[2]==container,'preview icon not anchored to the real health container')
-    local livePlate=CreateFrame('Frame') livePlate.UnitFrame={HealthBarsContainer=container,healthBar=bar}
-    SQP:CreateQuestPlate(livePlate)
+     local livePlate=CreateFrame('Frame') livePlate.UnitFrame={HealthBarsContainer=container,healthBar=bar}
+     livePlate.UnitFrame.ClassificationFrame=CreateFrame('Frame',nil,livePlate)
+     livePlate.UnitFrame.RaidTargetFrame=CreateFrame('Frame',nil,livePlate)
+     SQP:CreateQuestPlate(livePlate)
+     assert(livePlate.UnitFrame.ClassificationFrame:IsShown() and livePlate.UnitFrame.RaidTargetFrame:IsShown(),'live decorations hidden')
     local live=SQP.QuestPlates[livePlate]
     for i=1,5 do assert(overlay.icon.point[i]==live.icon.point[i],'preview/live anchor divergence at '..i) end
     assert(overlay.w==live.w and overlay.h==live.h,'overlay extent differs from live')

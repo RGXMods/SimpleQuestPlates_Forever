@@ -70,6 +70,14 @@ function SQP:UsesLevelChip(typeKey)
     return value == true
 end
 
+-- Background styles share numeric counts. Only explicit Text uses ratios.
+function SQP:GetDisplayStyle(typeKey)
+    if self:UsesLevelChip(typeKey) then return "chip" end
+    local value = typeKey and SQPSettings[typeKey .. "ShowIconBackground"]
+    if value == nil then value = SQPSettings.showIconBackground end
+    return value == false and "text" or "icon"
+end
+
 -- This is the sole placement/size model for real and preview overlays.
 function SQP:ApplyQuestLayout(questFrame, anchorTarget, parentScaleRatio)
     local icon = questFrame.icon
@@ -688,13 +696,9 @@ function SQP:RefreshAllNameplates()
 
     -- Update settings for all quest plates
     for plate, questFrame in pairs(self.QuestPlates) do
-        if questFrame and questFrame.icon then
+        if questFrame and questFrame.icon and not questFrame.isPreview then
             local function IsIconStyleEnabled(typeKey)
-                local value = SQPSettings[typeKey .. "ShowIconBackground"]
-                if value == nil then
-                    value = SQPSettings.showIconBackground
-                end
-                return value ~= false
+                return self:GetDisplayStyle(typeKey) ~= "text"
             end
 
             self:RefreshQuestPlateAnchor(plate, true)
@@ -867,5 +871,8 @@ function SQP:RefreshAllNameplates()
     -- Force update quest display
     for plate in pairs(self.ActiveNameplates) do
         self:UpdateQuestIcon(plate, plate._unitID)
+    end
+    if self.previewFrame and type(self.previewFrame.UpdatePreview) == "function" then
+        self.previewFrame:UpdatePreview()
     end
 end
