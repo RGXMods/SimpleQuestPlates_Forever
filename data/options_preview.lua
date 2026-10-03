@@ -871,6 +871,47 @@ function SQP:CreatePreviewSection(parent)
     lootTypeBtn:SetScript("OnClick", function() SelectType(3, previewFrame.activateLootMode) end)
     pctTypeBtn:SetScript("OnClick", function() SelectType(4, previewFrame.activatePercentMode) end)
 
+    -- Hover previews: mousing over a type button shows that quest type in
+    -- the preview without committing to it; leaving restores the committed
+    -- selection. Click still navigates to that page's settings.
+    local committedType
+    local function HoverType(activate)
+        if not committedType then
+            committedType = previewFrame.questType or "kill"
+        end
+        activate()
+    end
+    local function RestoreCommitted()
+        if not committedType then return end
+        local restore = committedType
+        committedType = nil
+        if restore == "kill" then
+            previewFrame.activateKillMode()
+        elseif restore == "loot" then
+            previewFrame.activateLootMode()
+        elseif restore == "percent" then
+            previewFrame.activatePercentMode()
+        end
+    end
+    for _, pair in ipairs({
+        { killTypeBtn, previewFrame.activateKillMode },
+        { lootTypeBtn, previewFrame.activateLootMode },
+        { pctTypeBtn,  previewFrame.activatePercentMode },
+    }) do
+        local button, activate = pair[1], pair[2]
+        button:SetScript("OnEnter", function() HoverType(activate) end)
+        button:SetScript("OnLeave", RestoreCommitted)
+    end
+    -- A committed click pins the new type so leaving cannot snap it back.
+    local function Commit(page, activate)
+        committedType = nil
+        SelectType(page, activate)
+        committedType = previewFrame.questType or "kill"
+    end
+    killTypeBtn:SetScript("OnClick", function() Commit(2, previewFrame.activateKillMode) end)
+    lootTypeBtn:SetScript("OnClick", function() Commit(3, previewFrame.activateLootMode) end)
+    pctTypeBtn:SetScript("OnClick", function() Commit(4, previewFrame.activatePercentMode) end)
+
     -- Initial update
     previewFrame:UpdatePreview()
 

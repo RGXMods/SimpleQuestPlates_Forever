@@ -151,7 +151,7 @@ for(const [name,body]of [
     end
  `],
  ['fallback slider does not recurse and accepts both call forms',`RGXUI=nil local store={amount=12} local s=SQP:CreateStyledSlider(host,{key='amount',storage=store,min=0,max=40,step=1,default=0}) s.SetValue(24) assert(store.amount==24) s:SetValue(30) assert(store.amount==30)`],
-  ['client preview template anchors through the live path',`
+ ['client preview template anchors through the live path',`
     NamePlatePreviewMixin={} NamePlateDriverFrame={}
     local p=SQP:CreatePreviewSection(host)
     assert(p.plate,'client preview template not adopted')
@@ -174,7 +174,27 @@ for(const [name,body]of [
     overlay=SQP.QuestPlates[p.plate]
     assert(overlay and overlay:GetParent()==p.plate.UnitFrame,'unified rebuild did not reparent to the UnitFrame')
     SQPSettings.unifiedNameplates=false
- `],
+  `],
+ ['type buttons hover-preview and click-commit',`
+    SQPSettings.unifiedNameplates=false SQP.ActiveNameplates={}
+    SQP:CreatePreviewSection(host)
+    local buttons={}
+    local function collect(frame)
+      if not frame.children then return end
+      for _,child in ipairs(frame.children)do
+        if child.scripts and child.scripts.OnEnter and child.scripts.OnLeave and child.scripts.OnClick
+          and (child.text=='Kill' or child.text=='Loot' or child.text=='%') then
+          buttons[#buttons+1]=child
+        end
+        collect(child)
+      end
+    end
+    collect(host)
+    -- Earlier scenarios also build preview sections on the shared host, so
+    -- one trio accumulates per CreatePreviewSection call; every trio must
+    -- carry the hover + click scripts.
+    assert(#buttons>=3 and #buttons%3==0,'expected complete kill/loot/percent trios with hover+click scripts, got '..#buttons)
+  `],
 ]){
   try{lua.doStringSync(body);console.log('PASS '+name);}catch(e){failed++;console.error('FAIL '+name+': '+e.message);}
 }
