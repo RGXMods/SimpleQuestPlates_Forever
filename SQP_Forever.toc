@@ -9,7 +9,7 @@
 ## IconTexture: Interface\AddOns\SQP_Forever\media\logo.tga
 ## DefaultState: Enabled
 ## RequiredDeps: RGX-Framework
-## X-RGX-Framework-MinVersion: 2.7.13-beta.1
+## X-RGX-Framework-MinVersion: 2.7.13-beta.2
 
 ## X-Localizations: enUS, enGB, deDE, esES, esMX, frFR, itIT, koKR, ptBR, ptPT, ruRU, zhCN, zhTW
 ## X-Category: UI Media, Questing & Leveling, Miscellaneous

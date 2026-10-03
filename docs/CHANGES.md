@@ -1,6 +1,6 @@
 # 2.1.7-forever.beta.7 - Beta feedback build
 
-- Framework-backed Profiles tab; requires RGX-Framework v2.7.13-beta.1.
+- Framework-backed Profiles tab; requires RGX-Framework v2.7.13-beta.2.
 - Classic / Text / Forever styles, numeric Forever counts and corrected style restoration.
 - Hover-only slider values, shared reset baselines, inline side controls and symmetric divider spacing.
 - Hide preview-only Blizzard decorations; preserve default-off percent sign and one-shot toast.

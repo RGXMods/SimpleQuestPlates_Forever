@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: RGXMods/RGX-Framework
-          ref: v2.7.13-beta.1
+          ref: v2.7.13-beta.2
           path: .framework-source
 
       - name: Install and validate source tooling
@@ -180,6 +180,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: 📦 Package and Release
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           RELEASE_NOTES: ${{ steps.changelog.outputs.body }}
         run: |
@@ -194,11 +195,11 @@ jobs:
 
       - name: ℹ️ Upload Notes
         run: |
-          echo "CurseForge and Wago uploads are handled by BigWigsMods/packager."
+          echo "Configured provider uploads are handled by the shared in-house publisher."
           echo "Project IDs come from X-Curse-Project-ID and X-Wago-ID in SQP_Forever.toc."
 
       - name: 📢 Send Discord Notification
-        if: success()
+        if: success() && startsWith(github.ref, 'refs/tags/') && env.DISCORD_WEBHOOK != ''
         shell: bash
         env:
           DISCORD_SUMMARY: ${{ steps.changelog.outputs.discord_summary }}
