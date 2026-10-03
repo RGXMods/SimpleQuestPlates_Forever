@@ -386,16 +386,34 @@ function SQP:GetQuestProgress(unitID)
     return progressGlob, resultQuestType, objectiveCount, itemsNeeded, questIdForItems
 end
 
+-- Raid markers take precedence over quest overlays. Read-only check:
+-- Blizzard owns marker state; we only hide our own frame, never the marker.
+function SQP:UnitHasRaidMarker(unitID)
+    if type(unitID) ~= "string" or type(GetRaidTargetIndex) ~= "function" then
+        return false
+    end
+    local ok, index = pcall(GetRaidTargetIndex, unitID)
+    return ok and index ~= nil
+end
+
 -- Update quest icon on nameplate
 function SQP:UpdateQuestIcon(plate, unitID)
     local started = nowSeconds()
     if not SQPSettings.enabled then return end
-    
+
     local Q = self.QuestPlates[plate]
     if not Q then return end
-    
+
     unitID = unitID or plate._unitID
     if not unitID then return end
+
+    -- A marked unit keeps its Blizzard raid marker fully visible: hide our
+    -- overlay instead of competing with it. This never blocks the marker
+    -- itself; Blizzard still drives RaidTargetFrame on RAID_TARGET_UPDATE.
+    if self:UnitHasRaidMarker(unitID) then
+        Q:Hide()
+        return
+    end
     
     -- Check if should hide in combat
     if SQPSettings.hideInCombat and UnitAffectingCombat("player") then
