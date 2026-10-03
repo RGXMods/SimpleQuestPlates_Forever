@@ -669,12 +669,15 @@ function SQP:CreatePreviewSection(parent)
         else
             -- Percent quest
             local percentIconMode = IsPreviewIconStyleEnabled("percent")
+            local unifiedType = SQP:UsesLevelChip("percent")
             if self.lootIcon then self.lootIcon:Hide() end
             if self.killIcon  then self.killIcon:Hide()  end
 
-            if SQPSettings.showPercentIcon == true then
+            if SQPSettings.showPercentIcon == true or unifiedType then
                 local pOW   = SQP:GetOutlineInfo("percent")
-                if percentIconMode then
+                -- Unified mode always renders the bare "%" beside the chip
+                -- (side/offset options stay live); icon/text modes unchanged.
+                if percentIconMode or unifiedType then
                     -- Icon mode: jellybean + number + "%" at configured side
                     icon:Show()
                     self.iconText:SetText("75")
@@ -722,15 +725,15 @@ function SQP:CreatePreviewSection(parent)
             end
         end
 
-        -- Unified mode shows the count in a level-style chip (no jellybean)
+        -- Unified mode shows the count in a level-style chip (no jellybean);
+        -- for percent quests the chip holds only the number and the "%" stays
+        -- outside per the side/offset options (handled above).
         if self.questChip then
             if SQP:UsesLevelChip(previewTypeKey) then
                 icon:Hide()
                 if previewTypeKey == "percent" then
-                    iconText:SetText("75%")
-                    if self.iconTextOutline then self.iconTextOutline:SetText("75%") end
-                    if self.percentIcon then self.percentIcon:Hide() end
-                    if self.percentIconOutline then self.percentIconOutline:Hide() end
+                    iconText:SetText("75")
+                    if self.iconTextOutline then self.iconTextOutline:SetText("75") end
                 end
                 -- Same updater as live plates; do not maintain a parallel size
                 -- path in the preview.
