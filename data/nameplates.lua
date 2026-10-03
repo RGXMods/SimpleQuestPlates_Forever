@@ -93,17 +93,20 @@ end
 -- Position the percent sign ("icon" mode) or the combined percent text
 -- ("text" mode). In icon mode the side setting controls placement: hugging
 -- the number's left/right side, or in the kill/loot mini-icon badge slots.
--- The offset sliders still apply on top (right/left modes treat X as the
--- distance from the number; badge modes mirror the kill/loot anchors).
+-- The offset sliders measure from the shipped baseline look (BASE_SPACING):
+-- slider 0 renders exactly where the old hard-coded 18px default sat, so the
+-- current settings ARE the new zero.
+local PERCENT_BASE_SPACING = 18
+
 function SQP:AnchorPercentSign(percentIcon, icon, textMode)
     if not percentIcon or not icon then
         return
     end
-    local offX = self:GetSettingValue("percentIconOffsetX")
+    local offX = PERCENT_BASE_SPACING + self:GetSettingValue("percentIconOffsetX")
     local offY = self:GetSettingValue("percentIconOffsetY")
     percentIcon:ClearAllPoints()
     if textMode then
-        percentIcon:SetPoint('CENTER', icon, offX, offY)
+        percentIcon:SetPoint('CENTER', icon, self:GetSettingValue("percentIconOffsetX"), offY)
         return
     end
     local side = SQPSettings.percentSignSide or "right"

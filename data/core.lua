@@ -133,7 +133,7 @@ SQP.DEFAULTS = {
     showMessages = true,
     showKillIcon = true,
     showLootIcon = true,
-    showPercentIcon = false,
+    showPercentIcon = true,
     -- Per-type fonts (kill/loot/percent) inherit the global font settings by
     -- default; per-type keys only exist once a user overrides them on the
     -- Kill / Loot / Percent tabs.
@@ -164,7 +164,9 @@ SQP.DEFAULTS = {
     killIconOffsetY = 15,
     lootIconOffsetX = -38,
     lootIconOffsetY = 16,
-    percentIconOffsetX = 18,
+    -- Percent sign offsets are measured from the shipped baseline position
+    -- (the current in-game look); 0 renders exactly there.
+    percentIconOffsetX = 0,
     percentIconOffsetY = 0,
     killIconSize = 12,
     lootIconSize = 14,

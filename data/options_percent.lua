@@ -179,7 +179,7 @@ function SQP:CreatePercentOptions(content)
         local yOffset = -8
 
         yOffset = MakeSlider(c, "Size",     "percentIconSize",    8,   8,  40, yOffset)
-        yOffset = MakeSlider(c, "Offset X", "percentIconOffsetX", 18, -80, 80, yOffset)
+        yOffset = MakeSlider(c, "Offset X", "percentIconOffsetX",  0, -80, 80, yOffset)
         yOffset = MakeSlider(c, "Offset Y", "percentIconOffsetY",  0, -80, 80, yOffset)
 
         local sideHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
