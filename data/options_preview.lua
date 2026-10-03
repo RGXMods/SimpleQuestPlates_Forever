@@ -57,6 +57,11 @@ function SQP:CreatePreviewSection(parent)
             wrapper:ClearAllPoints()
             wrapper:SetSize(380, 116)
             wrapper:SetPoint("TOP", previewFrame, "TOP", 0, -6)
+            -- The template ships its own options-chrome border and PREVIEW
+            -- label (atlas options_frame_child); the quest preview must show
+            -- only the nameplate, so drop that extra frame.
+            if wrapper.Border then wrapper.Border:Hide() end
+            if wrapper.Preview then wrapper.Preview:Hide() end
             wrapper:Show()
         end
     end
