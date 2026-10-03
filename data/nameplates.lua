@@ -130,19 +130,25 @@ function SQP:AnchorTaskIcon(iconTex, icon, typeKey)
     end
 end
 
--- The count chip uses the client's own level-indicator rectangle atlas
--- (verified in the 1.60.1 Forever AtlasInfo dump) so unified plates match
--- Blizzard's native level display; plain dark texture only as fallback.
+-- Like Forever's NameplateLevelFrame, the chip is a frame container with
+-- background artwork. The normal frame graphic is independent of Blizzard's
+-- separate target/focus selectedBorder; no selection highlight is added here.
 function SQP:CreateLevelChip(parent)
-    local chip = parent:CreateTexture(nil, "OVERLAY", nil, 0)
-    if chip.SetAtlas then
-        local okAtlas = pcall(chip.SetAtlas, chip, "UI-HUD-Nameplates-LevelIndicator-rectangle")
+    local chip = CreateFrame("Frame", nil, parent)
+    chip:EnableMouse(false)
+    -- Share the overlay's level so BACKGROUND artwork stays below its text.
+    chip:SetFrameLevel(parent:GetFrameLevel())
+    local background = chip:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints(chip)
+    chip.background = background
+    if background.SetAtlas then
+        local okAtlas = pcall(background.SetAtlas, background, "UI-HUD-Nameplates-LevelIndicator-rectangle")
         if okAtlas then
             chip.usesLevelAtlas = true
         end
     end
     if not chip.usesLevelAtlas then
-        chip:SetColorTexture(0, 0, 0, 0.55)
+        background:SetColorTexture(0, 0, 0, 0.55)
     end
     chip:Hide()
     return chip
@@ -150,7 +156,7 @@ end
 
 -- Unified mode shows the count in a native level-display style chip (dark
 -- backdrop box hugging the number) instead of the floating jellybean. The
--- chip resizes to fit the current text on every update.
+-- frame resizes to fit the current text on every update.
 function SQP:UpdateUnifiedChip(questFrame)
     local chip = questFrame and questFrame.levelChip
     if not chip then
@@ -172,7 +178,7 @@ function SQP:UpdateUnifiedChip(questFrame)
     local _, h = iconText:GetFont()
     chip:SetSize(w + 10, (h or 12) + 8)
     if not chip.usesLevelAtlas then
-        chip:SetColorTexture(0, 0, 0, 0.55)
+        chip.background:SetColorTexture(0, 0, 0, 0.55)
     end
     chip:Show()
 end
