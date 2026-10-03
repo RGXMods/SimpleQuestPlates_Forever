@@ -64,6 +64,7 @@ function SQP:CreateOptionsPanel()
         icon         = SQP.ICON_TEXTURE,
         openInSettings = true,
         registerInSettings = true,
+        closeButton = false,
         bannerHeight = 124,
         banner       = WithBrand(function(frame)
             SQP.previewFrame = SQP:CreatePreviewSection(frame)
