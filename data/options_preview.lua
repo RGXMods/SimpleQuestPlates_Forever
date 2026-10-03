@@ -32,9 +32,10 @@ function SQP:CreatePreviewSection(parent)
     lootTypeBtn:SetPoint("LEFT", killTypeBtn, "RIGHT", 4, 0)
     pctTypeBtn:SetPoint("LEFT",  lootTypeBtn, "RIGHT", 4, 0)
 
-    -- Mode caption: shows which nameplate integration mode is active
-    local modeCaption = previewFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    modeCaption:SetPoint("TOPRIGHT", previewFrame, "TOPRIGHT", -10, -6)
+    -- Mode caption: small "Preview — <style>" label at the banner's
+    -- top-left (the position the client's own settings preview uses).
+    local modeCaption = previewFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    modeCaption:SetPoint("TOPLEFT", previewFrame, "TOPLEFT", 10, -6)
     previewFrame.modeCaption = modeCaption
 
     -- Shared overlay references: assigned by the mock construction below or
@@ -582,12 +583,22 @@ function SQP:CreatePreviewSection(parent)
         end -- mock geometry
 
         if self.modeCaption then
+            -- Small label at the top-left of the banner (where the client's
+            -- own settings preview puts it); reports the live three-way
+            -- display style for the currently selected quest type.
             if SQPSettings.enabled == false then
-                self.modeCaption:SetText("|cff9a9a9aSQP disabled|r")
-            elseif SQP:UsesLevelChip(self.questType or "kill") then
-                self.modeCaption:SetText("|cff58be81Mode: Unified (level-style chip)|r")
+                self.modeCaption:SetText("|cff9a9a9aPreview — SQP disabled|r")
             else
-                self.modeCaption:SetText("|cff9a9a9aMode: Overlay (floating)|r")
+                local modeKey = self.questType or "kill"
+                local styleText
+                if SQP:UsesLevelChip(modeKey) then
+                    styleText = "Level chip"
+                else
+                    local value = SQPSettings[modeKey .. "ShowIconBackground"]
+                    if value == nil then value = SQPSettings.showIconBackground end
+                    styleText = value == false and "Text only" or "Floating icon"
+                end
+                self.modeCaption:SetText("|cff9a9a9aPreview — |r|cff58be81" .. styleText .. "|r")
             end
         end
 
