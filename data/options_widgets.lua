@@ -265,6 +265,7 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
 
     local settingKey = typeKey and (typeKey .. "ShowIconBackground") or "showIconBackground"
+    local chipKey = typeKey and (typeKey .. "LevelChip") or "unifiedNameplates"
 
     local dsHeader = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     SQP:ApplyDefaultFont(dsHeader)
@@ -274,29 +275,64 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     dsHeader:SetTextColor(0.345, 0.745, 0.506)
     yOffset = yOffset - 18
 
-    local iconStyleBtn = self:CreateStyledButton(parent, "Icon", 68, 22)
-    local textStyleBtn = self:CreateStyledButton(parent, "Text", 68, 22)
-    local chipStyleBtn = self:CreateStyledButton(parent, "Level chip", 82, 22)
-    local chipKey = typeKey and (typeKey .. "LevelChip") or "unifiedNameplates"
-    iconStyleBtn:SetPoint("TOPLEFT", parent, "TOP", -117, yOffset - 2)
-    textStyleBtn:SetPoint("LEFT", iconStyleBtn, "RIGHT", 8, 0)
-    chipStyleBtn:SetPoint("LEFT", textStyleBtn, "RIGHT", 8, 0)
+    -- Same three-way model as the Global "Background style" dropdown, as a
+    -- dropdown so both surfaces expose identical options.
+    local Drops = _G.RGXDropdowns
+    if not (Drops and type(Drops.CreateNestedDropdown) == "function") then
+        return yOffset
+    end
 
-    local function IsIconStyleEnabled()
+    local function CurrentMode()
+        if SQP:UsesLevelChip(typeKey) then return "chip" end
         local value = SQPSettings[settingKey]
         if value == nil and typeKey then
             value = SQPSettings.showIconBackground
         end
-        return value ~= false
+        if value == false then return "text" end
+        return "icon"
     end
 
     local function UpdateStyleButtons()
-        local iconStyle = IsIconStyleEnabled()
-        local chipStyle = SQP:UsesLevelChip(typeKey)
-        iconStyleBtn:SetAlpha(not chipStyle and iconStyle and 1 or 0.6)
-        textStyleBtn:SetAlpha(not chipStyle and not iconStyle and 1 or 0.6)
-        chipStyleBtn:SetAlpha(chipStyle and 1 or 0.6)
+        local dd = SQP.optionControls[settingKey .. "StyleDropdown"]
+        if dd and type(dd.SetValue) == "function" then
+            dd:SetValue(CurrentMode())
+        end
     end
+
+    local function BroadcastStyleUpdate()
+        local updaters = SQP.styleButtonUpdaters and SQP.styleButtonUpdaters[settingKey]
+        if not updaters then return end
+        for _, fn in ipairs(updaters) do
+            fn()
+        end
+    end
+
+    local dd = Drops:CreateNestedDropdown(parent, {
+        label = "Style",
+        width = 300,
+        buttonWidth = 290,
+        triggerStyle = "retail",
+        value = CurrentMode(),
+        items = {
+            { text = "Floating icon (default)", value = "icon" },
+            { text = "Text only",              value = "text" },
+            { text = "Level chip (native)",    value = "chip" },
+        },
+        onChange = function(value)
+            SQP:SetSetting(chipKey, value == "chip")
+            SQP:SetSetting(settingKey, value ~= "text")
+            BroadcastStyleUpdate()
+            if activatePreviewFn then activatePreviewFn() end
+            SQP:RefreshAllNameplates()
+        end,
+    })
+    if dd then
+        dd:SetPoint("TOPLEFT", 8, yOffset)
+        dd:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset)
+        SQP:SetControlTooltip(dd, "Pick this quest type's display: floating icon, plain text, or the native level chip.")
+        self.optionControls[settingKey .. "StyleDropdown"] = dd
+    end
+
     UpdateStyleButtons()
     if self.optionControls then
         self.optionControls[settingKey .. "StyleUpdater"] = UpdateStyleButtons
@@ -309,36 +345,15 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
     table.insert(SQP.styleButtonUpdaters[settingKey], UpdateStyleButtons)
 
-    local function BroadcastStyleUpdate()
-        local updaters = SQP.styleButtonUpdaters and SQP.styleButtonUpdaters[settingKey]
-        if not updaters then return end
-        for _, fn in ipairs(updaters) do
-            fn()
+    -- Keep the dropdown selection live when the style changes from elsewhere.
+    table.insert(SQP.styleButtonUpdaters[settingKey], function()
+        local control = self.optionControls[settingKey .. "StyleDropdown"]
+        if control and type(control.SetValue) == "function" then
+            control:SetValue(CurrentMode())
         end
-    end
+    end)
 
-    iconStyleBtn:SetScript("OnClick", function()
-        SQP:SetSetting(chipKey, false)
-        SQP:SetSetting(settingKey, true)
-        BroadcastStyleUpdate()
-        if activatePreviewFn then activatePreviewFn() end
-        SQP:RefreshAllNameplates()
-    end)
-    textStyleBtn:SetScript("OnClick", function()
-        SQP:SetSetting(chipKey, false)
-        SQP:SetSetting(settingKey, false)
-        BroadcastStyleUpdate()
-        if activatePreviewFn then activatePreviewFn() end
-        SQP:RefreshAllNameplates()
-    end)
-    chipStyleBtn:SetScript("OnClick", function()
-        SQP:SetSetting(chipKey, true)
-        SQP:SetSetting(settingKey, true)
-        BroadcastStyleUpdate()
-        if activatePreviewFn then activatePreviewFn() end
-        SQP:RefreshAllNameplates()
-    end)
-    yOffset = yOffset - 28
+    yOffset = yOffset - 36
 
     return yOffset
 end

@@ -77,20 +77,31 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
 
         local Drops = _G.RGXDropdowns
         if Drops and type(Drops.CreateNestedDropdown) == "function" then
+            -- Three-way display mode: icon background, plain text, or the
+            -- native level chip. Storage stays backward compatible:
+            -- showIconBackground = icon/text toggle, unifiedNameplates = chip.
+            local function CurrentMode()
+                if SQPSettings.unifiedNameplates == true then return "chip" end
+                if SQPSettings.showIconBackground == false then return "text" end
+                return "icon"
+            end
             local dd = Drops:CreateNestedDropdown(c, {
                 label = "Background style",
                 width = 300,
                 buttonWidth = 290,
                 triggerStyle = "retail",
-                value = (SQPSettings.unifiedNameplates == true),
+                value = CurrentMode(),
                 items = {
-                    { text = "Floating icon (default)", value = false },
-                    { text = "Level chip (native)",     value = true  },
+                    { text = "Floating icon (default)", value = "icon" },
+                    { text = "Text only",              value = "text" },
+                    { text = "Level chip (native)",    value = "chip" },
                 },
                 onChange = function(value)
-                    SQP:SetSetting('unifiedNameplates', value == true)
+                    SQP:SetSetting('unifiedNameplates', value == "chip")
+                    SQP:SetSetting('showIconBackground', value ~= "text")
                     for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
                         SQP:SetSetting(typeKey .. "LevelChip", nil)
+                        SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
                         local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
                         if update then update() end
                     end
@@ -104,7 +115,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                 if dd.label then dd.label:SetTextColor(0.345, 0.745, 0.506) end
                 dd:SetPoint("TOPLEFT", c, "TOPLEFT", 8, -8)
                 dd:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -8)
-                SQP:SetControlTooltip(dd, "Pick the quest display background. Level chip renders the count in a native level-style backdrop on the nameplate.")
+                SQP:SetControlTooltip(dd, "Pick the quest display background for every quest type. Text only drops the icon background and shows the raw count; Level chip renders the count in a native level-style backdrop on the nameplate.")
                 SQP.optionControls.unifiedDropdown = dd
             end
         end

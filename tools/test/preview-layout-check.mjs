@@ -127,7 +127,25 @@ for(const [name,body]of [
  ['level chip is a frame with background artwork, not a highlight',`local parent=CreateFrame('Frame') local chip=SQP:CreateLevelChip(parent) assert(chip.kind=='Frame' and chip.background and chip.background.parent==chip,'chip must own a frame background') assert(chip:GetFrameLevel()==parent:GetFrameLevel(),'background must not occlude count text') assert(chip.glow==nil,'frame correction must not add a selection highlight')`],
  ['canonical defaults preserve explicit offsets and inherit General font',`SQPSettings.offsetX=0 SQPSettings.fontSize=17 assert(SQP:GetSettingValue('offsetX')==0) for _,key in ipairs({'kill','loot','percent'})do assert(SQP:GetSettingBaseline(key..'FontSize')==17,'font reset differs from General') end SQPSettings.killIconSize=25 assert(SQP:GetSettingValue('killIconSize')==25 and SQP:GetSettingBaseline('killIconSize')==12)`],
  ['control defaults use canonical baselines',`assert(loadstring(options_widgets))('SQP',SQP) RGXUI=UI UI.CreateSlider=function(_,_,opts)return opts end local s=SQP:CreateStyledSlider(host,{key='killIconSize',default=999}) assert(s.default==12,'slider default drift') local f=SQP:CreateStyledSlider(host,{key='percentFontSize',default=8}) assert(f.default==17,'percent default ignores General font')`],
- ['level chip is selectable beside Icon and Text',`RGXUI=UI SQP:CreateDisplayStyleSection(host,'kill',nil,-8) local found for _,child in ipairs(host.children)do if child.text=='Level chip'then found=child end end assert(found and found.scripts.OnClick,'missing chip selection') found.scripts.OnClick() assert(SQP:UsesLevelChip('kill'))`],
+ ['display style is a three-way dropdown on every type page',`SQPSettings.unifiedNameplates=false SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil RGXUI=UI RGXDropdowns={CreateNestedDropdown=function(_,parent,opts)
+    local dd={parent=parent,opts=opts}
+    function dd:SetPoint() end function dd:SetValue(v) self.selected=v end
+    function dd:GetValue() return self.selected or (self.opts and self.opts.value) end
+    SQP.optionControls[opts.label=='Style' and 'killShowIconBackgroundStyleDropdown' or 'unused']=dd
+    return dd
+  end} SQP:CreateDisplayStyleSection(host,'kill',nil,-8)
+    local dd=SQP.optionControls['killShowIconBackgroundStyleDropdown']
+    assert(dd and dd.opts and #dd.opts.items==3,'display style must be a three-item dropdown')
+    local texts={} for _,item in ipairs(dd.opts.items)do texts[item.value]=item.text end
+    assert(texts.icon and texts.text and texts.chip,'dropdown must expose icon, text and chip modes')
+    assert(dd.opts.value=='icon','fresh kill page inherits the icon default')
+    dd.opts.onChange('chip')
+    assert(SQPSettings.killLevelChip==true and SQPSettings.killShowIconBackground==true,'chip mode writes the per-type chip override')
+    dd.opts.onChange('text')
+    assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==false,'text mode writes the icon toggle off')
+    dd.opts.onChange('icon')
+    assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==true,'icon mode restores the icon toggle')
+    SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil`],
  ['individual layout resets restore canonical offsets and displayed values',`
     RGXUI=UI RGXDesign=RGXFramework:GetDesign()
     UI.CreateCard=mockCard UI.CreateColumns=mockColumns UI.CreateSlider=mockSlider
