@@ -57,6 +57,10 @@ After installing the test build and reloading the Forever beta:
 - With a live quest nameplate visible, compare marker and requirement-icon
   placement at default and changed General scale/X/Y/side settings. Repeat
   with non-default nameplate/UI scales.
+- Set a Blizzard raid marker on a quest mob: the quest overlay must hide and
+  the marker must be fully visible (the addon never blocks markers). Clear
+  the marker: the overlay must return. With the addon enabled, markers must
+  appear on every marked target.
 - Change individual task sizes and offsets. Each reset/slider default must
   agree with the corresponding canonical `SQP.DEFAULTS` entry. Main overlay
   scale remains the General setting; per-type fonts inherit General unless

@@ -1,3 +1,9 @@
+# 2.1.7-forever.beta.8 - Beta feedback build
+
+- Marked units keep their Blizzard raid marker: the quest overlay hides while
+  a raid marker is present and returns when the marker clears. The addon never
+  blocks, moves, or restyles markers. See issue #9 and the beta.8 changelog.
+
 # 2.1.7-forever.beta.7 - Beta feedback build
 
 - Framework-backed Profiles tab; requires RGX-Framework v2.7.13-beta.2.

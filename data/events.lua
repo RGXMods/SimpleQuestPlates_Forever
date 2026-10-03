@@ -107,6 +107,14 @@ function SQP:UPDATE_MOUSEOVER_UNIT()
     end
 end
 
+-- Raid markers changed: marked plates must drop their quest overlay (and
+-- unmarked plates may regain it). Read-only re-evaluation; Blizzard keeps
+-- full ownership of the marker frames.
+function SQP:RAID_TARGET_UPDATE()
+    self:ReevaluateActivePlates()
+    self:RefreshAllNameplates()
+end
+
 -- Quest events with throttling (using RGX:After for debounce)
 local questUpdatePending = false
 
@@ -216,3 +224,4 @@ RGX:RegisterEvent("PLAYER_REGEN_DISABLED", function(event, ...) SQP:PLAYER_REGEN
 RGX:RegisterEvent("PLAYER_REGEN_ENABLED", function(event, ...) SQP:PLAYER_REGEN_ENABLED(...) end, "SQP_PLAYER_REGEN_ENABLED")
 RGX:RegisterEvent("PLAYER_TARGET_CHANGED", function(event, ...) SQP:PLAYER_TARGET_CHANGED(...) end, "SQP_PLAYER_TARGET_CHANGED")
 RGX:RegisterEvent("UPDATE_MOUSEOVER_UNIT", function(event, ...) SQP:UPDATE_MOUSEOVER_UNIT(...) end, "SQP_UPDATE_MOUSEOVER_UNIT")
+RGX:RegisterEvent("RAID_TARGET_UPDATE", function(event, ...) SQP:RAID_TARGET_UPDATE(...) end, "SQP_RAID_TARGET_UPDATE")

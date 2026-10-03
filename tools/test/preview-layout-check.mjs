@@ -14,7 +14,7 @@ const core=readFileSync(`${root}/core.lua`,'utf8');
 lua.ctx.baselines=core.slice(core.indexOf('function SQP:GetSettingBaseline'),core.indexOf('-- Declare defaults'));
 lua.ctx.defaults=core.slice(core.indexOf('SQP.DEFAULTS = {'),core.indexOf('SQP.defaultMinimapAngle'));
 lua.ctx.settingSetter=core.slice(core.indexOf('function SQP:SetSetting'),core.indexOf('-- Reset settings to default'));
-for(const name of ['options_general','options_preview','options_widgets','options_kill','options_loot','options_percent','nameplates'])lua.ctx[name]=readFileSync(`${root}/${name}.lua`,'utf8');
+for(const name of ['options_general','options_preview','options_widgets','options_kill','options_loot','options_percent','nameplates','quest','events'])lua.ctx[name]=readFileSync(`${root}/${name}.lua`,'utf8');
 lua.ctx.layout=readFileSync(join(framework,'modules/ui/layout.lua'),'utf8');
 let failed=0;
 try{
@@ -143,7 +143,57 @@ for(const [name,body]of [
     end
     SQP.SetSetting=previous
  `],
- ['preview type buttons mirror the framework divider gap',`
+  ['raid marker hides quest overlay without touching Blizzard marker state',`
+    UnitName=function() return 'Tester' end
+    assert(loadstring(quest))('SQP',SQP)
+    local wasEnabled=SQPSettings.enabled
+    SQPSettings.enabled=true
+    UnitExists=function() return true end
+    local seen={}
+    GetRaidTargetIndex=function(unit) seen[#seen+1]=unit return 8 end
+    local progressCalls=0
+    SQP.GetQuestProgress=function(...) progressCalls=progressCalls+1 return '3/5',1,3,0,nil end
+    local plate=CreateFrame('Frame') plate._unitID='nameplate1'
+    local overlay=CreateFrame('Frame',nil,plate)
+    overlay.icon=overlay:CreateTexture()
+    overlay.iconText=overlay:CreateFontString()
+    overlay.iconTextOutline=overlay:CreateFontString()
+    overlay.IsVisible=function() return true end
+    overlay:Show()
+    SQP.QuestPlates={[plate]=overlay}
+    SQP:UpdateQuestIcon(plate,'nameplate1')
+    assert(not overlay:IsShown(),'marked unit kept quest overlay')
+    assert(#seen==1 and seen[1]=='nameplate1','marker read used wrong unit')
+    assert(progressCalls==0,'marked unit ran quest evaluation before hiding')
+    GetRaidTargetIndex=function() return nil end
+    overlay:Show()
+    SQP:UpdateQuestIcon(plate,'nameplate1')
+    assert(progressCalls==1,'unmarked unit did not reach quest evaluation')
+    assert(overlay:IsShown() and tostring(overlay.iconText:GetText())=='3','unmarked quest unit did not render')
+    assert(loadstring(quest))('SQP',SQP)
+    SQPSettings.enabled=wasEnabled
+    GetRaidTargetIndex=nil UnitExists=nil SQP.QuestPlates={} SQP.ActiveNameplates={}
+  `],
+  ['raid marker changes re-evaluate visible plates',`
+    local registered={}
+    RGXFramework.RegisterEvent=function(_,event,fn) registered[event]=fn end
+    RGXFramework.OnReady=function() end
+    RGXFramework.UnregisterEvent=function() end
+    UnitName=function() return 'Tester' end
+    assert(loadstring(quest))('SQP',SQP)
+    assert(loadstring(events))('SQP',SQP)
+    assert(registered.RAID_TARGET_UPDATE,'RAID_TARGET_UPDATE not registered')
+    SQPSettings.enabled=true
+    UnitExists=function() return true end
+    GetRaidTargetIndex=function() return 3 end
+    local plate=CreateFrame('Frame') plate._unitID='nameplate1' plate._plateUnitID='nameplate1'
+    local overlay=CreateFrame('Frame',nil,plate) overlay:Show()
+    SQP.QuestPlates={[plate]=overlay} SQP.ActiveNameplates={[plate]=plate}
+    registered.RAID_TARGET_UPDATE()
+    assert(not overlay:IsShown(),'marker change did not hide quest overlay')
+    GetRaidTargetIndex=nil UnitExists=nil SQP.QuestPlates={} SQP.ActiveNameplates={}
+  `],
+  ['preview type buttons mirror the framework divider gap',`
     local banner=CreateFrame('Frame') banner.divider=CreateFrame('Frame',nil,banner) banner.dividerGap=10
     local p=SQP:CreatePreviewSection(banner)
     local kill
