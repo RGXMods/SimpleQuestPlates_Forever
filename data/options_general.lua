@@ -64,6 +64,34 @@ local function BuildGeneralPage(leftColumn)
     return generalCard
 end
 
+-- Apply one global display mode everywhere: writes the global background
+-- keys, clears per-type overrides, refreshes all style controls, rebuilds
+-- plates and the preview. Shared by the Global dropdown and display presets.
+-- mode: "icon" | "chip" | "text".
+function SQP:ApplyGlobalDisplayStyle(mode)
+    assert(mode == "icon" or mode == "chip" or mode == "text", "SQP: unknown display mode")
+    SQP:SetSetting('unifiedNameplates', mode == "chip")
+    SQP:SetSetting('showIconBackground', mode ~= "text")
+    for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
+        SQP:SetSetting(typeKey .. "LevelChip", nil)
+        SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
+        local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
+        if update then update() end
+    end
+    local dd = SQP.optionControls.unifiedDropdown
+    if dd and type(dd.SetValue) == "function" then
+        dd:SetValue(mode == "chip" and "chip" or "icon")
+    end
+    local box = SQP.optionControls.showIconBackgroundTextOnly
+    if box and type(box.SetChecked) == "function" then
+        box:SetChecked(mode == "text")
+    end
+    SQP:RebuildQuestPlates()
+    if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
+        SQP.previewFrame:UpdatePreview()
+    end
+end
+
 -- Page 2: Display — background style, text-only, position & scale, nameplate
 -- side, plus the font card on the left.
 local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
@@ -83,16 +111,6 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                 if SQPSettings.unifiedNameplates == true then return "chip" end
                 return "icon"
             end
-            local function RefreshGlobalStyle()
-                local dd = SQP.optionControls.unifiedDropdown
-                if dd and type(dd.SetValue) == "function" then
-                    dd:SetValue(CurrentMode())
-                end
-                local box = SQP.optionControls.showIconBackgroundTextOnly
-                if box and type(box.SetChecked) == "function" then
-                    box:SetChecked(SQPSettings.showIconBackground == false)
-                end
-            end
             local function RefreshPlatesAndPreview()
                 SQP:RebuildQuestPlates()
                 if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
@@ -110,16 +128,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                     { text = "Forever",               value = "chip" },
                 },
                 onChange = function(value)
-                    SQP:SetSetting('unifiedNameplates', value == "chip")
-                    SQP:SetSetting('showIconBackground', true)
-                    for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
-                        SQP:SetSetting(typeKey .. "LevelChip", nil)
-                        SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
-                        local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
-                        if update then update() end
-                    end
-                    RefreshGlobalStyle()
-                    RefreshPlatesAndPreview()
+                    SQP:ApplyGlobalDisplayStyle(value)
                 end,
             })
             if dd then

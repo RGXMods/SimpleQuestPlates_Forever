@@ -92,6 +92,16 @@ function SQP:CreateOptionsPanel()
                         title = "Profiles",
                         icon = SQP.ICON_TEXTURE,
                         description = "Create, switch, and manage your saved profiles.",
+                        presets = {
+                            { name = "Classic",   description = "Floating quest icons",        mode = "icon" },
+                            { name = "Text Only", description = "Counts only, no backgrounds", mode = "text" },
+                            { name = "Forever",   description = "Native level-frame style",     mode = "chip" },
+                        },
+                        onPreset = function(preset)
+                            if preset and preset.mode then
+                                SQP:ApplyGlobalDisplayStyle(preset.mode)
+                            end
+                        end,
                     })
                 else
                     local label = UI:CreateLabel(f, { text = "Profiles need the RGX-Framework beta. Enable its beta channel in your addon manager.", width = 500 })
