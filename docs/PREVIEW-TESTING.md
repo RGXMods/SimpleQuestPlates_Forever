@@ -45,6 +45,14 @@ After installing the test build and reloading the Forever beta:
 - Change global and per-type animation switches/intensities and toast values.
   Reset All Animation Settings must restore `SQP.DEFAULTS`, including Kill,
   Loot and Percent main-animation switches and their displayed controls.
+- While a type preview is visible, drag Global intensity: the visible preview
+  must stay that type. Child sliders update without flipping the mode.
+- The preview banner is tighter and pages are taller: verify the banner has
+  less dead space above the nameplate with no clipping at small widths,
+  and page content gains vertical room (including Settings-embedded view).
+- Profiles: the dropdown is 220px, action buttons 84px, the active box shows
+  the profile name in the brand color plus "Character: <name - realm>", and
+  the Presets card sits below. Compare directly with the reference page.
 - On Kill, Loot and Percent, select Classic and Forever in the dropdown, and
   tick Text mode. The chip must appear in both the preview and live quest
   overlay, drawn with the client's level-indicator texture. Dropdown

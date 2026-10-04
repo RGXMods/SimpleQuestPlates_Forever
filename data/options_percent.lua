@@ -166,8 +166,12 @@ function SQP:CreatePercentOptions(content)
             width = 160,
             suffix = "%",
             onChange = function(val)
-                if SQP.previewFrame and SQP.previewFrame.activatePercentMode then
+                -- Cascade from the Global slider must not flip the preview.
+                if not SQP._cascadingGlobalIntensity
+                    and SQP.previewFrame and SQP.previewFrame.activatePercentMode then
                     SQP.previewFrame.activatePercentMode()
+                elseif SQP.UpdatePreviewManually then
+                    SQP:UpdatePreviewManually()
                 end
                 SQP:RefreshAllNameplates()
             end,

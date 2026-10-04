@@ -372,6 +372,31 @@ for(const [name,body]of [
       assert(byTitle[title..' Display']:GetParent()~=byTitle[title..' Animation']:GetParent(),'display not separated on its own column for '..key)
     end
   `],
+  ['global intensity cascade never flips the preview mode',`
+    SQPSettings.animateQuestIcons=true SQP.ActiveNameplates={} SQP.QuestPlates={}
+    local activates={kill=0,loot=0,percent=0} local renders=0
+    SQP.previewFrame={questType='kill',
+      activateKillMode=function()activates.kill=activates.kill+1 pcall(function()SQP.previewFrame.questType='kill'end)end,
+      activateLootMode=function()activates.loot=activates.loot+1 SQP.previewFrame.questType='loot' end,
+      activatePercentMode=function()activates.percent=activates.percent+1 SQP.previewFrame.questType='percent' end,
+      UpdatePreview=function()renders=renders+1 end}
+    SQP:CreateAnimationOptions(CreateFrame('Frame'))
+    local g=SQP.optionControls.globalAnimationIntensity
+    local k=SQP.optionControls.killAnimationIntensity
+    local p=SQP.optionControls.percentAnimationIntensity
+    g.opts.onChange(150)
+    assert(SQP.previewFrame.questType=='kill','cascade flipped the preview to '..tostring(SQP.previewFrame.questType))
+    assert(activates.kill==0 and activates.loot==0 and activates.percent==0,'cascade activated a type preview')
+    assert(SQPSettings.killAnimationIntensity==150 and SQPSettings.lootAnimationIntensity==150 and SQPSettings.percentAnimationIntensity==150,'global cascade did not write child settings')
+    assert(renders>=2,'global cascade must re-render current preview via refresh + manual update, got '..renders)
+    assert(SQP._cascadingGlobalIntensity==false,'cascade flag left set')
+    local rendersBefore=renders
+    p.opts.onChange(175)
+    assert(activates.percent==1 and SQP.previewFrame.questType=='percent','direct percent slider edit did not activate its preview')
+    assert(renders>rendersBefore,'percent activate did not render its preview')
+    assert(SQP._cascadingGlobalIntensity==false)
+    SQP.previewFrame=nil
+  `],
   ['fallback slider does not recurse and accepts both call forms',`RGXUI=nil local store={amount=12} local s=SQP:CreateStyledSlider(host,{key='amount',storage=store,min=0,max=40,step=1,default=0}) s.SetValue(24) assert(store.amount==24) s:SetValue(30) assert(store.amount==30)`],
  ['client preview template anchors through the live path',`
     NamePlatePreviewMixin={} NamePlateDriverFrame={}

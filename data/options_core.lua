@@ -65,7 +65,8 @@ function SQP:CreateOptionsPanel()
         openInSettings = true,
         registerInSettings = true,
         closeButton = false,
-        bannerHeight = 124,
+        height = 680,
+        bannerHeight = 104,
         banner       = WithBrand(function(frame)
             SQP.previewFrame = SQP:CreatePreviewSection(frame)
         end),
