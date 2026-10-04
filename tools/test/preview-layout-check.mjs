@@ -341,8 +341,9 @@ for(const [name,body]of [
      p.plate.UnitFrame=unit unit.HealthBarsContainer=container unit.healthBar=bar
      unit.ClassificationFrame=CreateFrame('Frame',nil,unit)
      unit.RaidTargetFrame=CreateFrame('Frame',nil,unit)
+     unit.AurasFrame=CreateFrame('Frame',nil,unit)
      p:UpdatePreview()
-     for _,key in ipairs({'ClassificationFrame','RaidTargetFrame'})do
+     for _,key in ipairs({'ClassificationFrame','RaidTargetFrame','AurasFrame'})do
        assert(not unit[key]:IsShown(),'preview decoration was not hidden: '..key)
        unit[key]:Show()
        assert(not unit[key]:IsShown(),'Blizzard re-show brought back decoration: '..key)
@@ -354,8 +355,9 @@ for(const [name,body]of [
      local livePlate=CreateFrame('Frame') livePlate.UnitFrame={HealthBarsContainer=container,healthBar=bar}
      livePlate.UnitFrame.ClassificationFrame=CreateFrame('Frame',nil,livePlate)
      livePlate.UnitFrame.RaidTargetFrame=CreateFrame('Frame',nil,livePlate)
+     livePlate.UnitFrame.AurasFrame=CreateFrame('Frame',nil,livePlate)
      SQP:CreateQuestPlate(livePlate)
-     assert(livePlate.UnitFrame.ClassificationFrame:IsShown() and livePlate.UnitFrame.RaidTargetFrame:IsShown(),'live decorations hidden')
+     assert(livePlate.UnitFrame.ClassificationFrame:IsShown() and livePlate.UnitFrame.RaidTargetFrame:IsShown() and livePlate.UnitFrame.AurasFrame:IsShown(),'live decorations hidden')
     local live=SQP.QuestPlates[livePlate]
     for i=1,5 do assert(overlay.icon.point[i]==live.icon.point[i],'preview/live anchor divergence at '..i) end
     assert(overlay.w==live.w and overlay.h==live.h,'overlay extent differs from live')
