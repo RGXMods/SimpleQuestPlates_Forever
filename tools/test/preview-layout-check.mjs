@@ -76,7 +76,7 @@ lua.doStringSync(`
   function methods:GetStringWidth()return #(self.text or '')*6 end
   function methods:SetTexture(t)self.texture=t end
   function methods:GetTexture()return self.texture end
-  function methods:CreateTexture()return widget(self)end
+  function methods:CreateTexture(_,layer,_,sublevel)local t=widget(self)t.textureLayer=layer t.textureSublevel=sublevel return t end
   function methods:CreateFontString()return widget(self)end
   function methods:CreateAnimationGroup()return widget(self)end
   function methods:CreateAnimation()return widget(self)end
@@ -156,6 +156,15 @@ for(const [name,body]of [
     end
     SQP.SetSetting=previous
  `],
+  ['quest toast starts behind the quest display',`
+    local plate=CreateFrame('Frame') SQP.ActiveNameplates={} SQP.QuestPlates={}
+    SQP:CreateQuestPlate(plate)
+    local qf=SQP.QuestPlates[plate]
+    assert(qf and qf.qmark,'toast texture missing')
+    -- CreateTexture currently receives (name, layer, inherit, sublevel); the
+    -- harness records the last call as textureLayer.
+    assert(qf.qmark.textureLayer=='BACKGROUND','toast texture must render BACKGROUND behind icon and text, got '..tostring(qf.qmark.textureLayer))
+  `],
   ['raid marker hides quest overlay without touching Blizzard marker state',`
     UnitName=function() return 'Tester' end
     assert(loadstring(quest))('SQP',SQP)

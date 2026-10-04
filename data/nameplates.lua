@@ -264,7 +264,9 @@ end
 -- Create quest plate frame for new nameplates
 -- One toast construction/update path for live overlays and the options preview.
 function SQP:CreateQuestToast(questFrame, icon)
-    local qmark = questFrame:CreateTexture(nil, 'OVERLAY', nil, 7)
+    -- BACKGROUND layer keeps the toast behind the quest display frame, icon,
+    -- and overlay text instead of covering the whole stack.
+    local qmark = questFrame:CreateTexture(nil, 'BACKGROUND')
     qmark:SetPoint('CENTER', icon)
     qmark:SetTexture('Interface/WorldMap/UI-WorldMap-QuestIcon')
     qmark:SetTexCoord(0, 0.56, 0.5, 1)
