@@ -116,8 +116,8 @@ function SQP:CreateKillOptions(content)
         displayCard:FitContent()
     end
 
-    -- LEFT: Kill Animation
-    local animCard = SQP:CreateCard(leftColumn, "Kill Animation", { above = displayCard })
+    -- RIGHT: Kill Animation (top of the right column)
+    local animCard = SQP:CreateCard(rightColumn, "Kill Animation")
     do
         local c = animCard.content
         local yOffset = -8
@@ -172,8 +172,8 @@ function SQP:CreateKillOptions(content)
         animCard:FitContent()
     end
 
-    -- RIGHT: Kill Color
-    local colorCard = SQP:CreateCard(rightColumn, "Kill Color")
+    -- RIGHT: Kill Color (under Animation)
+    local colorCard = SQP:CreateCard(rightColumn, "Kill Color", { above = animCard })
     do
         local c = colorCard.content
         local yOffset = -8

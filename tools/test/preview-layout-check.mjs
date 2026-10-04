@@ -349,7 +349,30 @@ for(const [name,body]of [
       buttons.right.scripts.OnClick(); assert(SQPSettings[sideKey]=='right')
     end
  `],
- ['fallback slider does not recurse and accepts both call forms',`RGXUI=nil local store={amount=12} local s=SQP:CreateStyledSlider(host,{key='amount',storage=store,min=0,max=40,step=1,default=0}) s.SetValue(24) assert(store.amount==24) s:SetValue(30) assert(store.amount==30)`],
+  ['animation card leads the right column on type pages',`
+    local savedCreateCard=SQP.CreateCard
+    for _,key in ipairs({'kill','loot','percent'})do
+      local title=key:sub(1,1):upper()..key:sub(2)
+      local seen={}
+      -- Builders call SQP:CreateCard with colon syntax (self first); record
+      -- each card shell with its title and host column for layout asserts.
+      SQP.CreateCard=function(self,parent,cardTitle,opts)
+        local card=CreateFrame('Frame',nil,parent)
+        card.mockTitle=cardTitle
+        card.content=CreateFrame('Frame',nil,card)
+        function card:FitContent() end
+        seen[#seen+1]=card
+        return card
+      end
+      SQP['Create'..title..'Options'](SQP,CreateFrame('Frame'))
+      SQP.CreateCard=savedCreateCard
+      local byTitle={} for _,c in ipairs(seen)do byTitle[c.mockTitle]=c end
+      assert(byTitle[title..' Display'] and byTitle[title..' Animation'] and byTitle[title..' Color'],'type page cards missing for '..key)
+      assert(byTitle[title..' Animation']:GetParent()==byTitle[title..' Color']:GetParent(),'animation/color not sharing the right column for '..key)
+      assert(byTitle[title..' Display']:GetParent()~=byTitle[title..' Animation']:GetParent(),'display not separated on its own column for '..key)
+    end
+  `],
+  ['fallback slider does not recurse and accepts both call forms',`RGXUI=nil local store={amount=12} local s=SQP:CreateStyledSlider(host,{key='amount',storage=store,min=0,max=40,step=1,default=0}) s.SetValue(24) assert(store.amount==24) s:SetValue(30) assert(store.amount==30)`],
  ['client preview template anchors through the live path',`
     NamePlatePreviewMixin={} NamePlateDriverFrame={}
     local p=SQP:CreatePreviewSection(host)

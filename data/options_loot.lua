@@ -119,8 +119,8 @@ function SQP:CreateLootOptions(content)
         displayCard:FitContent()
     end
 
-    -- LEFT: Loot Animation
-    local animCard = SQP:CreateCard(leftColumn, "Loot Animation", { above = displayCard })
+    -- RIGHT: Loot Animation (top of the right column)
+    local animCard = SQP:CreateCard(rightColumn, "Loot Animation")
     do
         local c = animCard.content
         local yOffset = -8
@@ -175,8 +175,8 @@ function SQP:CreateLootOptions(content)
         animCard:FitContent()
     end
 
-    -- RIGHT: Loot Color
-    local colorCard = SQP:CreateCard(rightColumn, "Loot Color")
+    -- RIGHT: Loot Color (under Animation)
+    local colorCard = SQP:CreateCard(rightColumn, "Loot Color", { above = animCard })
     do
         local c = colorCard.content
         local yOffset = -8
