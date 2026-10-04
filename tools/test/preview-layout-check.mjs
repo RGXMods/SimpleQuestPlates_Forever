@@ -240,7 +240,7 @@ for(const [name,body]of [
  ['level chip is a frame with background artwork, not a highlight',`local parent=CreateFrame('Frame') local chip=SQP:CreateLevelChip(parent) assert(chip.kind=='Frame' and chip.background and chip.background.parent==chip,'chip must own a frame background') assert(chip:GetFrameLevel()==parent:GetFrameLevel(),'background must not occlude count text') assert(chip.glow==nil,'frame correction must not add a selection highlight')`],
  ['canonical defaults preserve explicit offsets and inherit General font',`SQPSettings.offsetX=0 SQPSettings.fontSize=17 assert(SQP:GetSettingValue('offsetX')==0) for _,key in ipairs({'kill','loot','percent'})do assert(SQP:GetSettingBaseline(key..'FontSize')==17,'font reset differs from General') end SQPSettings.killIconSize=25 assert(SQP:GetSettingValue('killIconSize')==25 and SQP:GetSettingBaseline('killIconSize')==12)`],
  ['control defaults use canonical baselines',`assert(loadstring(options_widgets))('SQP',SQP) RGXUI=UI UI.CreateSlider=function(_,_,opts)return opts end local s=SQP:CreateStyledSlider(host,{key='killIconSize',default=999}) assert(s.default==12,'slider default drift') local f=SQP:CreateStyledSlider(host,{key='percentFontSize',default=8}) assert(f.default==17,'percent default ignores General font')`],
- ['display style is a three-way dropdown on every type page',`SQPSettings.unifiedNameplates=false SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil RGXUI=UI RGXDropdowns={CreateNestedDropdown=function(_,parent,opts)
+  ['display style is a two-way dropdown with a text-only tick box',`SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil RGXUI=UI UI.CreateCheckbox=mockCheckbox RGXDropdowns={CreateNestedDropdown=function(_,parent,opts)
     local dd={parent=parent,opts=opts}
     function dd:SetPoint() end function dd:SetValue(v) self.selected=v end
     function dd:GetValue() return self.selected or (self.opts and self.opts.value) end
@@ -248,16 +248,28 @@ for(const [name,body]of [
     return dd
   end} SQP:CreateDisplayStyleSection(host,'kill',nil,-8)
     local dd=SQP.optionControls['killShowIconBackgroundStyleDropdown']
-    assert(dd and dd.opts and #dd.opts.items==3,'display style must be a three-item dropdown')
+    assert(dd and dd.opts and #dd.opts.items==2,'display style must be a two-item dropdown')
     local texts={} for _,item in ipairs(dd.opts.items)do texts[item.value]=item.text end
-    assert(texts.icon and texts.text and texts.chip,'dropdown must expose icon, text and chip modes')
+    assert(texts.icon and texts.chip and not texts.text,'text must not be a dropdown entry')
     assert(dd.opts.value=='icon','fresh kill page inherits the icon default')
+    local box=SQP.optionControls['killShowIconBackgroundTextOnly']
+    assert(box,'text-only tick box missing')
+    assert(box:GetChecked()==false,'fresh kill page must not start in text mode')
+    box:SetChecked(true); box.scripts.OnClick(box)
+    assert(SQPSettings.killShowIconBackground==false and SQPSettings.killLevelChip==false,'ticking text-only must clear the chip')
+    assert(SQP:GetDisplayStyle('kill')=='text','text-only tick did not take effect')
+    assert(box:GetChecked()==true,'tick box lost its checked state')
+    box:SetChecked(false); box.scripts.OnClick(box)
+    assert(SQPSettings.killShowIconBackground==nil and SQPSettings.killLevelChip==nil,'unticking must return to inheritance')
+    assert(SQP:GetDisplayStyle('kill')=='icon','unticking did not restore the inherited style')
     dd.opts.onChange('chip')
     assert(SQPSettings.killLevelChip==true and SQPSettings.killShowIconBackground==true,'chip mode writes the per-type chip override')
-    dd.opts.onChange('text')
-    assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==false,'text mode writes the icon toggle off')
+    assert(box:GetChecked()==false,'chip selection left text-only ticked')
+    box:SetChecked(true); box.scripts.OnClick(box)
+    assert(SQPSettings.killShowIconBackground==false and SQPSettings.killLevelChip==false,'ticking text-only must clear the chip')
     dd.opts.onChange('icon')
-    assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==true,'icon mode restores the icon toggle')
+    assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==true,'icon mode restores the icon toggle and clears text')
+    assert(box:GetChecked()==false,'icon selection left text-only ticked')
     SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil`],
  ['individual layout resets restore canonical offsets and displayed values',`
     RGXUI=UI RGXDesign=RGXFramework:GetDesign()
@@ -281,7 +293,7 @@ for(const [name,body]of [
       end
     end
  `],
- ['style cycles restore preview state for Classic Text and Forever',`
+  ['style cycles restore preview state for Classic Text and Forever',`
     SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
     SQPSettings.showPercentIcon=true SQP.ActiveNameplates={} SQP.QuestPlates={}
     NamePlatePreviewMixin=nil NamePlateDriverFrame=nil
@@ -290,17 +302,21 @@ for(const [name,body]of [
       local p=SQP:CreatePreviewSection(host) SQP.previewFrame=p p.questType=key
       SQP:CreateDisplayStyleSection(host,key,function()p:UpdatePreview()end,-8)
       local dd=SQP.optionControls[key..'ShowIconBackgroundStyleDropdown']
-      dd.opts.onChange('text')
+      local box=SQP.optionControls[key..'ShowIconBackgroundTextOnly']
+      box:SetChecked(true); box.scripts.OnClick(box)
       assert(not p.icon:IsShown() and not p.questChip:IsShown(),'Text retained frame for '..key)
-      dd.opts.onChange('icon')
+      box:SetChecked(false); box.scripts.OnClick(box)
       assert(p.icon:IsShown() and not p.questChip:IsShown(),'Classic was not restored for '..key)
       dd.opts.onChange('chip')
       assert(not p.icon:IsShown() and p.questChip:IsShown(),'Forever was not restored for '..key)
-      dd.opts.onChange('text'); dd.opts.onChange('icon')
+      box:SetChecked(true); box.scripts.OnClick(box)
+      assert(not p.icon:IsShown() and not p.questChip:IsShown(),'ticked Text over Forever kept the chip for '..key)
+      box:SetChecked(false); box.scripts.OnClick(box)
+      dd.opts.onChange('icon')
       assert(p.icon:IsShown() and p.iconText:GetText()~='','Classic text/icon missing after cycle for '..key)
     end
     SQP.previewFrame=nil SQPSettings.showPercentIcon=false
- `],
+  `],
  ['side controls share the Show Icon row on all three pages',`
     for _,key in ipairs({'kill','loot','percent'})do
       local sideKey=key=='percent' and 'percentSignSide' or key..'IconSide'

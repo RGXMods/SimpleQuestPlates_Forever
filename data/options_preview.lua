@@ -613,8 +613,8 @@ function SQP:CreatePreviewSection(parent)
 
         if self.modeCaption then
             -- Small label at the top-left of the banner (where the client's
-            -- own settings preview puts it); reports the live three-way
-            -- display style for the currently selected quest type.
+            -- own settings preview puts it); reports the live display style
+            -- (Classic / Text / Forever) for the currently selected quest type.
             if SQPSettings.enabled == false then
                 self.modeCaption:SetText("|cff9a9a9aPreview — SQP disabled|r")
             else

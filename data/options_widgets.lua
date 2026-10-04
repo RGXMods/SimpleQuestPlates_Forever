@@ -257,7 +257,11 @@ function SQP:CreateFontSection(parent, typeKey, yOffset, activatePreviewFn)
     return yOffset
 end
 
--- Create a Display Style (Icon / Text) section
+-- Create a Display Style section: a Classic / Forever background dropdown plus
+-- a "Text only" tick box. The two controls are mutually exclusive at their
+-- scope: picking a dropdown entry clears text mode, and ticking the box
+-- clears the chip. Unticking returns to the inherited (per-type) or default
+-- (global) style.
 -- typeKey: "kill", "loot", "percent", or nil (legacy/global)
 -- activatePreviewFn: optional function to call to switch the preview mode
 -- returns: next yOffset
@@ -282,27 +286,36 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     dsHeader:SetFontObject(GameFontNormal)
     dsHeader:SetTextColor(0.345, 0.745, 0.506)
     yOffset = yOffset - 18
-    -- Same three-way model as the Global "Background style" dropdown, as a
-    -- dropdown so both surfaces expose identical options.
+    -- Same two-way model as the Global "Background style" dropdown, as a
+    -- dropdown so both surfaces expose identical options. Text-only lives
+    -- in the tick box below, not in this list.
     local Drops = _G.RGXDropdowns
     if not (Drops and type(Drops.CreateNestedDropdown) == "function") then
         return yOffset
     end
 
+    -- Background choice only: text mode is reported by the tick box.
     local function CurrentMode()
         if SQP:UsesLevelChip(typeKey) then return "chip" end
+        return "icon"
+    end
+
+    local function IsTextMode()
         local value = SQPSettings[settingKey]
         if value == nil and typeKey then
             value = SQPSettings.showIconBackground
         end
-        if value == false then return "text" end
-        return "icon"
+        return value == false
     end
 
     local function UpdateStyleButtons()
         local dd = SQP.optionControls[settingKey .. "StyleDropdown"]
         if dd and type(dd.SetValue) == "function" then
             dd:SetValue(CurrentMode())
+        end
+        local box = SQP.optionControls[settingKey .. "TextOnly"]
+        if box and type(box.SetChecked) == "function" then
+            box:SetChecked(IsTextMode())
         end
     end
 
@@ -312,6 +325,12 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
         for _, fn in ipairs(updaters) do
             fn()
         end
+    end
+
+    local function ApplyStyle()
+        BroadcastStyleUpdate()
+        if activatePreviewFn then activatePreviewFn() end
+        SQP:RefreshAllNameplates()
     end
 
     local dd = Drops:CreateNestedDropdown(parent, {
@@ -324,23 +343,38 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
         value = CurrentMode(),
         items = {
             { text = "Classic (default)", value = "icon" },
-            { text = "Text",              value = "text" },
             { text = "Forever",           value = "chip" },
         },
         onChange = function(value)
             SQP:SetSetting(chipKey, value == "chip")
-            SQP:SetSetting(settingKey, value ~= "text")
-            BroadcastStyleUpdate()
-            if activatePreviewFn then activatePreviewFn() end
-            SQP:RefreshAllNameplates()
+            SQP:SetSetting(settingKey, true)
+            ApplyStyle()
         end,
     })
     if dd then
         dd:SetPoint("TOPLEFT", 8, yOffset)
         dd:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset)
-        SQP:SetControlTooltip(dd, "Pick this quest type's display: Classic icon, Text, or Forever level-frame style.")
+        SQP:SetControlTooltip(dd, "Pick this quest type's background: Classic icon or the Forever level-frame style.")
         self.optionControls[settingKey .. "StyleDropdown"] = dd
     end
+    yOffset = yOffset - 30
+
+    local textFrame = self:CreateStyledCheckbox(parent, "Text only")
+    textFrame:SetPoint("TOPLEFT", 8, yOffset)
+    textFrame.checkbox:SetChecked(IsTextMode())
+    self.optionControls[settingKey .. "TextOnly"] = textFrame.checkbox
+    textFrame.checkbox:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            SQP:SetSetting(settingKey, false)
+            SQP:SetSetting(chipKey, false)
+        else
+            SQP:SetSetting(settingKey, nil)
+            SQP:SetSetting(chipKey, nil)
+        end
+        ApplyStyle()
+    end)
+    SQP:SetControlTooltip(textFrame, "Show only the count text, no icon background or chip. Unticking returns to the inherited display style.")
+    yOffset = yOffset - 22
 
     UpdateStyleButtons()
     if self.optionControls then
@@ -361,9 +395,6 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
             control:SetValue(CurrentMode())
         end
     end)
-
-    -- Comfortable-but-tight gap below the dropdown before the next section.
-    yOffset = yOffset - 40
 
     return yOffset
 end
