@@ -22,8 +22,9 @@ restricted-frame safety.
 
 After installing the test build and reloading the Forever beta:
 
-- Open Animation. Toast Size and Reset All Animation Settings must be separate
-  rows. Resize/reopen the panel and repeat.
+- Open Animation. Reset All Animation Settings sits at the bottom of the
+  Animation card, below Global intensity without overlap; Toast Size stays
+  in the Quest Toast card. Resize/reopen the panel and repeat.
 - The options banner should render a real client nameplate (the same
   NamePlatePreviewTemplate mechanism the game's own nameplate settings use).
   Its style, scale, name and level display must match in-world plates;

@@ -311,6 +311,46 @@ local function BuildAnimationPage(page)
         globalIntensitySlider:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, yOffset)
         SQP.optionControls.globalAnimationIntensity = globalIntensitySlider
         SQP.optionControls.globalAnimationIntensityLabel = globalIntensitySlider.valueLabel
+        yOffset = yOffset - 48
+
+        -- Bottom of the card: restores every SQP animation setting, not just
+        -- the toast trio. Baselines match SQP.DEFAULTS exactly.
+        local animationKeys = {
+            "animateQuestIcon", "animateQuestIcons", "animateMainIcons",
+            "killAnimateMain", "lootAnimateMain", "percentAnimateMain",
+            "syncAnimations", "useGlobalAnimationSettings", "globalAnimationEnabled",
+            "animationCombatMode", "globalAnimationIntensity", "killAnimationIntensity",
+            "lootAnimationIntensity", "percentAnimationIntensity", "showQuestMarker",
+            "questMarkerSize", "toastDuration", "toastHeight",
+        }
+        local resetAll = SQP:CreateStyledButton(c, "Reset All Animation Settings", 190, 20)
+        resetAll:SetPoint("TOP", c, "TOP", 0, yOffset)
+        resetAll:SetScript("OnClick", function()
+            local animationDefaults = {}
+            for _, key in ipairs(animationKeys) do
+                local value = SQP.DEFAULTS[key]
+                animationDefaults[key] = value
+                SQP:SetSetting(key, value)
+            end
+            for key, control in pairs(SQP.optionControls or {}) do
+                if animationDefaults[key] ~= nil then
+                    if control.SetChecked then
+                        control:SetChecked(animationDefaults[key] == true)
+                    elseif control.SetValue then
+                        control.SetValue(animationDefaults[key])
+                    end
+                end
+            end
+            for _, key in ipairs({ "animateQuestIconsLoot", "animateQuestIconsPercent" }) do
+                local control = SQP.optionControls[key]
+                if control then control:SetChecked(SQP.DEFAULTS.animateQuestIcons) end
+            end
+            SQP:RefreshAllNameplates()
+            if SQP.previewFrame and SQP.previewFrame.UpdatePreview then
+                SQP.previewFrame:UpdatePreview()
+            end
+        end)
+        SQP.optionControls.resetAllAnimations = resetAll
         animationCard:FitContent()
     end
 
@@ -371,45 +411,6 @@ local function BuildAnimationPage(page)
         flow:Add(toastSizeSlider, { fill = true })
         SQP.optionControls.questMarkerSize = toastSizeSlider
         SQP.optionControls.questMarkerSizeLabel = toastSizeSlider.valueLabel
-
-        -- Bottom of the card: restores every SQP animation setting, not just
-        -- the toast trio. Baselines match SQP.DEFAULTS exactly.
-        local animationKeys = {
-            "animateQuestIcon", "animateQuestIcons", "animateMainIcons",
-            "killAnimateMain", "lootAnimateMain", "percentAnimateMain",
-            "syncAnimations", "useGlobalAnimationSettings", "globalAnimationEnabled",
-            "animationCombatMode", "globalAnimationIntensity", "killAnimationIntensity",
-            "lootAnimationIntensity", "percentAnimationIntensity", "showQuestMarker",
-            "questMarkerSize", "toastDuration", "toastHeight",
-        }
-        local resetAll = SQP:CreateStyledButton(c, "Reset All Animation Settings", 190, 20)
-        resetAll:SetScript("OnClick", function()
-            local animationDefaults = {}
-            for _, key in ipairs(animationKeys) do
-                local value = SQP.DEFAULTS[key]
-                animationDefaults[key] = value
-                SQP:SetSetting(key, value)
-            end
-            for key, control in pairs(SQP.optionControls or {}) do
-                if animationDefaults[key] ~= nil then
-                    if control.SetChecked then
-                        control:SetChecked(animationDefaults[key] == true)
-                    elseif control.SetValue then
-                        control.SetValue(animationDefaults[key])
-                    end
-                end
-            end
-            for _, key in ipairs({ "animateQuestIconsLoot", "animateQuestIconsPercent" }) do
-                local control = SQP.optionControls[key]
-                if control then control:SetChecked(SQP.DEFAULTS.animateQuestIcons) end
-            end
-            SQP:RefreshAllNameplates()
-            if SQP.previewFrame and SQP.previewFrame.UpdatePreview then
-                SQP.previewFrame:UpdatePreview()
-            end
-        end)
-        flow:Add(resetAll, { fill = true })
-        SQP.optionControls.resetAllAnimations = resetAll
         toastCard:AutoHeight()
     end
 end
