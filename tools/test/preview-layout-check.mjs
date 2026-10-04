@@ -98,6 +98,10 @@ lua.doStringSync(`
   -- Widget factories guard on _G.RGXUI; pages/tests sequence captures need
   -- the same baseline as the real client (framework loads before consumers).
   RGXUI=UI
+  RGXFonts={Apply=function()end,GetDefault=function()return 'font' end,
+    ResolveName=function(self,name,default)return name or default end,
+    GetPath=function()return 'Fonts\\FRIZQT__.TTF' end,
+    CreateFontSettingControl=function(self,parent,opts)return CreateFrame('Frame',nil,parent)end}
   SQP={L={},optionControls={},DEFAULTS={scale=1.1,fontSize=12,anchor='RIGHT',relativeTo='LEFT',offsetX=0,offsetY=0,killIconSide='left',lootIconSide='right',killIconSize=12,lootIconSize=14,percentIconSize=8,killIconOffsetX=2,killIconOffsetY=15,lootIconOffsetX=-38,lootIconOffsetY=16,percentIconOffsetX=18,percentIconOffsetY=0},RefreshAllNameplates=noop,UpdateQuestFont=noop,GetOutlineInfo=function()return 0 end,IsAnimationEnabled=function()return false end,ApplyPulseDuration=noop,GetAnimationDuration=function()return 1 end}
   SQPSettings={scale=1.1,showQuestMarker=true,unifiedNameplates=false}
   assert(loadstring(defaults))()
@@ -344,6 +348,19 @@ for(const [name,body]of [
       'icon preset missed the global background keys')
     assert(SQP:GetDisplayStyle('kill')=='icon','icon preset did not take effect')
     SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
+  `],
+  ['global quest-icon master drives per-type switches',`
+    SQPSettings.showKillIcon=true SQPSettings.showLootIcon=false SQPSettings.showPercentIcon=true
+    local active={kill=nil,loot=nil,percent=nil}
+    SQP.ActiveNameplates={} SQP.QuestPlates={} SQP.previewFrame=nil
+    SQP:CreateGlobalOptions(CreateFrame('Frame'))
+    local master=SQP.optionControls.showQuestTypeIcons
+    assert(master,'master toggle missing')
+    master:SetChecked(false); master.scripts.OnClick(master)
+    assert(SQPSettings.showKillIcon==false and SQPSettings.showLootIcon==false and SQPSettings.showPercentIcon==false,'master-off did not clear all three')
+    assert(master:GetChecked()==false)
+    master:SetChecked(true); master.scripts.OnClick(master)
+    assert(SQPSettings.showKillIcon==true and SQPSettings.showLootIcon==true and SQPSettings.showPercentIcon==true,'master-on did not restore all three')
   `],
   ['side controls share the Show Icon row on all three pages',`
     for _,key in ipairs({'kill','loot','percent'})do
