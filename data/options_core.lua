@@ -87,7 +87,12 @@ function SQP:CreateOptionsPanel()
               end },
             { text = "Profiles", content = WithBrand(function(f)
                 if type(UI.CreateProfilesPanel) == "function" then
-                    UI:CreateProfilesPanel(f, { db = SQP.db })
+                    UI:CreateProfilesPanel(f, {
+                        db = SQP.db,
+                        title = "Profiles",
+                        icon = SQP.ICON_TEXTURE,
+                        description = "Create, switch, and manage your saved profiles.",
+                    })
                 else
                     local label = UI:CreateLabel(f, { text = "Profiles need the RGX-Framework beta. Enable its beta channel in your addon manager.", width = 500 })
                     label:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -8)
