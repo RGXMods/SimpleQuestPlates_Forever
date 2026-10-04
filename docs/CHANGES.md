@@ -1,3 +1,9 @@
+# 2.1.7-forever.beta.9 - Beta feedback build
+
+- Secret GUIDs no longer crash progress evaluation: restricted-unit cache
+  lookups fail closed to uncached evaluation instead of erroring every plate
+  update (issue #11). No behavior change for plain GUIDs.
+
 # 2.1.7-forever.beta.8 - Beta feedback build
 
 - Marked units keep their Blizzard raid marker: the quest overlay hides while

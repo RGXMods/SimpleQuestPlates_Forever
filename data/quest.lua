@@ -176,6 +176,20 @@ local function GetQuestObjectiveInfo(questID, index, isComplete)
     end
 end
 
+-- Secret-safe progress cache: on modern clients a UnitGUID() result can be a
+-- secret value in restricted unit contexts, and indexing a plain table with
+-- a secret key throws. Cache access must never throw; on failure proceed
+-- uncached instead of erroring the plate update.
+local function CacheRead(self, guid)
+    local ok, entry = pcall(function() return self._questProgressCache[guid] end)
+    if ok then return entry end
+    return nil
+end
+
+local function CacheWrite(self, guid, entry)
+    pcall(function() self._questProgressCache[guid] = entry end)
+end
+
 -- Get quest progress from unit tooltip. Tooltip scans are one of the most
 -- expensive per-frame calls an addon can make. Cache the computed result per
 -- unit GUID so plate events, target changes, and ticks can reuse it; refresh
@@ -190,7 +204,7 @@ function SQP:GetQuestProgress(unitID)
     self._questCacheRev = self._questCacheRev or 0
     local QUICK_TTL = 0.5
     if guid then
-        local entry = self._questProgressCache[guid]
+        local entry = CacheRead(self, guid)
         if entry and entry.rev == self._questCacheRev
             and (entry.time + QUICK_TTL) > nowSeconds() then
             return entry.progressGlob, entry.questType, entry.objectiveCount,
@@ -376,12 +390,12 @@ function SQP:GetQuestProgress(unitID)
     end
     local resultQuestType = progressGlob and (questType or 1) or nil
     if guid then
-        self._questProgressCache[guid] = {
+        CacheWrite(self, guid, {
             rev = self._questCacheRev, time = nowSeconds(),
             progressGlob = progressGlob, questType = resultQuestType,
             objectiveCount = objectiveCount, itemsNeeded = itemsNeeded,
             questID = questIdForItems,
-        }
+        })
     end
     return progressGlob, resultQuestType, objectiveCount, itemsNeeded, questIdForItems
 end

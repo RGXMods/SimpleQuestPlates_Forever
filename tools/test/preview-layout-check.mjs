@@ -193,6 +193,36 @@ for(const [name,body]of [
     assert(not overlay:IsShown(),'marker change did not hide quest overlay')
     GetRaidTargetIndex=nil UnitExists=nil SQP.QuestPlates={} SQP.ActiveNameplates={}
   `],
+  ['secret GUIDs fail closed to uncached evaluation instead of erroring',`
+    UnitName=function() return 'Tester' end
+    assert(loadstring(quest))('SQP',SQP)
+    local wasEnabled=SQPSettings.enabled
+    SQPSettings.enabled=true
+    UnitExists=function() return true end
+    UnitGUID=function() return 'Creature-0-1-2-3-4-0000000000' end
+    GetRaidTargetIndex=function() return nil end
+    SQP.Compat={}
+    SQPScanTooltip=CreateFrame('Frame') SQPScanTooltip.NumLines=function() return 0 end
+    -- Simulate the client refusing to index with secret keys.
+    SQP._questProgressCache=setmetatable({}, {
+      __index=function() error('attempted to index a table that cannot be indexed with secret keys') end,
+      __newindex=function() error('attempted to index a table that cannot be indexed with secret keys') end})
+    local plate=CreateFrame('Frame') plate._unitID='nameplate1'
+    local overlay=CreateFrame('Frame',nil,plate)
+    overlay.icon=overlay:CreateTexture()
+    overlay.iconText=overlay:CreateFontString()
+    overlay.iconTextOutline=overlay:CreateFontString()
+    overlay.IsVisible=function() return true end
+    overlay:Show()
+    SQP.QuestPlates={[plate]=overlay} SQP.ActiveNameplates={[plate]=plate}
+    SQP:UpdateQuestIcon(plate,'nameplate1')
+    assert(not overlay:IsShown(),'secret-keyed unit left a stale overlay')
+    assert(loadstring(quest))('SQP',SQP)
+    SQP._questProgressCache={}
+    SQPSettings.enabled=wasEnabled
+    SQP.Compat=nil SQPScanTooltip=nil UnitGUID=nil UnitExists=nil
+    GetRaidTargetIndex=nil SQP.QuestPlates={} SQP.ActiveNameplates={}
+  `],
   ['preview type buttons mirror the framework divider gap',`
     local banner=CreateFrame('Frame') banner.divider=CreateFrame('Frame',nil,banner) banner.dividerGap=10
     local p=SQP:CreatePreviewSection(banner)
