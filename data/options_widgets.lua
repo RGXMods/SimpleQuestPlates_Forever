@@ -591,6 +591,17 @@ function SQP:CreateCard(host, title, opts)
     return frame
 end
 
+-- Page header for an options page: framework section skin with the brand
+-- icon. Pages keep their full-size content hosts; the header sits above them
+-- visually (transparent page frames never cover it).
+function SQP:CreatePageHeader(parent, title, icon)
+    local D = assert(_G.RGXDesign, "SQP: RGXDesign unavailable")
+    local header = D:CreateSectionHeader(parent, title, icon or SQP.ICON_TEXTURE)
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -8)
+    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -8)
+    return header
+end
+
 -- BLU-style paged tab content (framework pager). Returns the pager object
 -- and the list of page host frames; only page 1 is shown initially. Tabs
 -- build their content into pager.frames[i]. opts.pageNames (array of label

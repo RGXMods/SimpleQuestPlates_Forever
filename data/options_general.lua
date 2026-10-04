@@ -439,6 +439,7 @@ end
 -- The preview selectors own the per-type pages; the tab row stays global.
 function SQP:CreateGlobalOptions(content)
     if not self.optionControls then self.optionControls = {} end
+    SQP:CreatePageHeader(content, "Global")
     local pages = {}
     for i = 1, 4 do
         local page = CreateFrame("Frame", nil, content)
@@ -477,5 +478,6 @@ end
 
 function SQP:CreateAnimationOptions(content)
     if not self.optionControls then self.optionControls = {} end
+    SQP:CreatePageHeader(content, "Animation")
     BuildAnimationPage(content)
 end
