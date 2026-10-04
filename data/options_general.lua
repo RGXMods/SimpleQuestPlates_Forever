@@ -92,8 +92,8 @@ function SQP:ApplyGlobalDisplayStyle(mode)
     end
 end
 
--- Page 2: Display — background style, text-only, position & scale, nameplate
--- side, plus the font card on the left.
+-- Page 2: Display — nameplate side, text mode, position & scale, background
+-- style, plus the font card on the left.
 local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
     -- RIGHT: Display (quest display style + position & scale in one card)
     local displayCard = Card(rightColumn, "Display")
@@ -101,45 +101,49 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
         local c = displayCard.content
         local yOffset = -8
 
-        local Drops = _G.RGXDropdowns
-        if Drops and type(Drops.CreateNestedDropdown) == "function" then
-            -- Two-way background: Classic icon or the Forever level chip.
-            -- Text-only lives in the tick box below. Storage stays backward
-            -- compatible: showIconBackground = icon/text toggle,
-            -- unifiedNameplates = chip.
-            local function CurrentMode()
-                if SQPSettings.unifiedNameplates == true then return "chip" end
-                return "icon"
-            end
-            local function RefreshPlatesAndPreview()
-                SQP:RebuildQuestPlates()
-                if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
-                    SQP.previewFrame:UpdatePreview()
-                end
-            end
-            local dd = Drops:CreateNestedDropdown(c, {
-                label = "Background style",
-                width = 300,
-                buttonWidth = 290,
-                triggerStyle = "retail",
-                value = CurrentMode(),
-                items = {
-                    { text = "Classic (default)", value = "icon" },
-                    { text = "Forever",               value = "chip" },
-                },
-                onChange = function(value)
-                    SQP:ApplyGlobalDisplayStyle(value)
-                end,
-            })
-            if dd then
-                if dd.label then dd.label:SetTextColor(0.345, 0.745, 0.506) end
-                dd:SetPoint("TOPLEFT", c, "TOPLEFT", 8, -8)
-                dd:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -8)
-                SQP:SetControlTooltip(dd, "Pick every quest type's background: Classic icon or the Forever level-frame style.")
-                SQP.optionControls.unifiedDropdown = dd
-            end
-            yOffset = yOffset - ((dd and dd:GetHeight()) or 56) - 8
+        -- Nameplate Side (top)
+        local sideHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        SQP:ApplyDefaultFont(sideHeader)
+        sideHeader:SetPoint("TOPLEFT", 8, yOffset)
+        sideHeader:SetText("|cff58be81Nameplate Side|r")
+        yOffset = yOffset - 18
 
+        local sides = _G.RGXUI:CreateButtonGroup(c, { "Left Side", "Right Side" },
+            { buttonWidth = 84, height = 20, gap = 8, y = yOffset })
+        local leftBtn, rightBtn = sides.buttons[1], sides.buttons[2]
+        SQP.optionControls.anchorButtons = {left = leftBtn, right = rightBtn}
+
+        local function UpdateAnchorButtons()
+            leftBtn:SetAlpha( SQPSettings.anchor == "RIGHT" and 1 or 0.6)
+            rightBtn:SetAlpha(SQPSettings.anchor == "LEFT"  and 1 or 0.6)
+        end
+        SQP.optionControls.updateAnchorButtons = UpdateAnchorButtons
+        UpdateAnchorButtons()
+
+        leftBtn:SetScript("OnClick", function()
+            SQP:SetSetting('anchor', "RIGHT")
+            SQP:SetSetting('relativeTo', "LEFT")
+            UpdateAnchorButtons()
+            SQP:RefreshAllNameplates()
+        end)
+        rightBtn:SetScript("OnClick", function()
+            SQP:SetSetting('anchor', "LEFT")
+            SQP:SetSetting('relativeTo', "RIGHT")
+            UpdateAnchorButtons()
+            SQP:RefreshAllNameplates()
+        end)
+        yOffset = yOffset - 28
+
+        local Drops = _G.RGXDropdowns
+        local hasDropdown = Drops and type(Drops.CreateNestedDropdown) == "function"
+        local function RefreshPlatesAndPreview()
+            SQP:RebuildQuestPlates()
+            if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
+                SQP.previewFrame:UpdatePreview()
+            end
+        end
+        if hasDropdown then
+            -- Text mode tick box
             local textFrame = SQP:CreateStyledCheckbox(c, "Text mode")
             textFrame:SetPoint("TOPLEFT", 8, yOffset)
             textFrame.checkbox:SetChecked(SQPSettings.showIconBackground == false)
@@ -198,36 +202,37 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
         SQP.optionControls.offsetYLabel = ySlider.valueLabel
         yOffset = yOffset - 46
 
-        local sideHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        SQP:ApplyDefaultFont(sideHeader)
-        sideHeader:SetPoint("TOPLEFT", 8, yOffset)
-        sideHeader:SetText("|cff58be81Nameplate Side|r")
-        yOffset = yOffset - 18
-
-        local sides = _G.RGXUI:CreateButtonGroup(c, { "Left Side", "Right Side" },
-            { buttonWidth = 84, height = 20, gap = 8, y = yOffset })
-        local leftBtn, rightBtn = sides.buttons[1], sides.buttons[2]
-        SQP.optionControls.anchorButtons = {left = leftBtn, right = rightBtn}
-
-        local function UpdateAnchorButtons()
-            leftBtn:SetAlpha( SQPSettings.anchor == "RIGHT" and 1 or 0.6)
-            rightBtn:SetAlpha(SQPSettings.anchor == "LEFT"  and 1 or 0.6)
+        if hasDropdown then
+            -- Background style dropdown (bottom): Classic icon or the
+            -- Forever level chip. Text mode lives in the tick box above.
+            -- Storage stays backward compatible: showIconBackground =
+            -- icon/text toggle, unifiedNameplates = chip.
+            local function CurrentMode()
+                if SQPSettings.unifiedNameplates == true then return "chip" end
+                return "icon"
+            end
+            local dd = Drops:CreateNestedDropdown(c, {
+                label = "Background style",
+                width = 300,
+                buttonWidth = 290,
+                triggerStyle = "retail",
+                value = CurrentMode(),
+                items = {
+                    { text = "Classic (default)", value = "icon" },
+                    { text = "Forever",               value = "chip" },
+                },
+                onChange = function(value)
+                    SQP:ApplyGlobalDisplayStyle(value)
+                end,
+            })
+            if dd then
+                if dd.label then dd.label:SetTextColor(0.345, 0.745, 0.506) end
+                dd:SetPoint("TOPLEFT", c, "TOPLEFT", 8, yOffset)
+                dd:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, yOffset)
+                SQP:SetControlTooltip(dd, "Pick every quest type's background: Classic icon or the Forever level-frame style.")
+                SQP.optionControls.unifiedDropdown = dd
+            end
         end
-        SQP.optionControls.updateAnchorButtons = UpdateAnchorButtons
-        UpdateAnchorButtons()
-
-        leftBtn:SetScript("OnClick", function()
-            SQP:SetSetting('anchor', "RIGHT")
-            SQP:SetSetting('relativeTo', "LEFT")
-            UpdateAnchorButtons()
-            SQP:RefreshAllNameplates()
-        end)
-        rightBtn:SetScript("OnClick", function()
-            SQP:SetSetting('anchor', "LEFT")
-            SQP:SetSetting('relativeTo', "RIGHT")
-            UpdateAnchorButtons()
-            SQP:RefreshAllNameplates()
-        end)
         displayCard:FitContent()
     end
 
