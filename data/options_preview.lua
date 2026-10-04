@@ -16,10 +16,14 @@ function SQP:CreatePreviewSection(parent)
     -- settings use: a real driver-registered plate, verified in the 1.60.1
     -- Forever UI source) or, when that template is unavailable, a mock
     -- drawn with the client's verified Classic nameplate constants.
+    -- Reserve a 30px strip at the bottom of the banner for the type buttons:
+    -- the preview frame must clear it by that amount, not sit inside it.
+    local BUTTON_STRIP = 30
     local previewFrame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    previewFrame:SetHeight(124)
     previewFrame:SetPoint("TOPLEFT",  parent, "TOPLEFT",  14, -3)
     previewFrame:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, -3)
+    previewFrame:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 14, BUTTON_STRIP)
+    previewFrame:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -14, BUTTON_STRIP)
     -- The preview is a copy of the Blizzard nameplate, not a dialog box.
     -- Never reparent the actual nameplate: it is owned by the nameplate driver.
     previewFrame:SetBackdrop(nil)
@@ -108,9 +112,9 @@ function SQP:CreatePreviewSection(parent)
     if not useReal then
     nameplate = CreateFrame("Frame", nil, previewFrame)
     nameplate:SetSize(152, 44)
-    -- Shift up with the tighter 84px banner: the mock stays clear of the
-    -- Kill/Loot/% buttons instead of sitting lower toward the button row.
-    nameplate:SetPoint("CENTER", previewFrame, "CENTER", 0, 22)
+    -- Raised within its frame: the mock plate clears the reserved button
+    -- strip while staying inside the banner top edge.
+    nameplate:SetPoint("CENTER", previewFrame, "CENTER", 0, 8)
 
     -- Nameplate background (Blizzard nameplate navy)
     local nameplateBackground = nameplate:CreateTexture(nil, "BACKGROUND")

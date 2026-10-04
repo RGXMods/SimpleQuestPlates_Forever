@@ -168,7 +168,9 @@ SQP.DEFAULTS = {
     percentIconOffsetY = 0,
     killIconSize = 12,
     lootIconSize = 14,
-    percentIconSize = 8,
+    -- Starts at the shared 12; the sign would otherwise render smaller than
+    -- the kill/loot counts it floats beside.
+    percentIconSize = 12,
     iconTintMain = false,
     iconTintMainColor = {1, 1, 1},
     iconTintQuest = false,
