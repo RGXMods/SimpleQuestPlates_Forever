@@ -45,6 +45,7 @@ lua.doStringSync(`
     if type(relative)=='number'then x,y=relative,relativePoint relative=self.parent relativePoint=point end
     relative=relative or self.parent relativePoint=relativePoint or point x=x or 0 y=y or 0
      self.point={point,relative,relativePoint,x,y}
+     self.pointsList=self.pointsList or{} self.pointsList[#self.pointsList+1]=self.point
      self.anchorCount=(self.anchorCount or 0)+1
     self.y=y
     if relativePoint=='BOTTOMLEFT'or relativePoint=='BOTTOMRIGHT'then
@@ -53,8 +54,8 @@ lua.doStringSync(`
     end
   end
   function methods:GetPoint()return unpack(self.point or {})end
-   function methods:ClearAllPoints()self.point=nil self.anchorCount=0 end
-  function methods:SetAllPoints(relative)self.all=relative or self.parent self.w=self.all.w self.h=self.all.h self.y=0 end
+    function methods:ClearAllPoints()self.point=nil self.anchorCount=0 self.pointsList={} end
+   function methods:SetAllPoints(relative)self.all=relative or self.parent self.w=self.all.w self.h=self.all.h self.y=0 self.pointsList=self.pointsList or{} self.pointsList[#self.pointsList+1]={point='ALL',relative=self.all} end
   function methods:SetScript(k,fn)self.scripts[k]=fn end
    function methods:HookScript(k,fn)
      local previous=self.scripts[k]
@@ -431,6 +432,24 @@ for(const [name,body]of [
     assert(renders>rendersBefore,'percent activate did not render its preview')
     assert(SQP._cascadingGlobalIntensity==false)
     SQP.previewFrame=nil
+  `],
+  ['page content lives below the header inset',`
+    local gpage=CreateFrame('Frame')
+    SQP:CreateGlobalOptions(gpage)
+    local header,inset
+    for _,child in ipairs(gpage.children or {})do
+      if child.title=='Global' then header=child
+      elseif type(child.pointsList)=='table' then
+        for _,p in ipairs(child.pointsList)do
+          if p[1]=='TOPLEFT' and p[3]=='TOPLEFT' and p[5]==-40 then inset=child break end
+        end
+      end
+    end
+    assert(header,'Global header missing')
+    assert(inset,'Global page inset missing below header')
+    local pagesInside=0
+    for _,child in ipairs(inset.children or {})do if child:GetParent()==inset then pagesInside=pagesInside+1 end end
+    assert(pagesInside>=1,'subpages did not parent to the inset')
   `],
   ['page header helper builds the framework section header',`
     local PageHeader=assert(SQP.CreatePageHeader,'helper missing')
