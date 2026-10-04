@@ -54,6 +54,33 @@ local function BuildGeneralPage(leftColumn)
         instanceFrame.checkbox:SetScript("OnClick", function(self)
             SQP:SetSetting('hideInInstance', self:GetChecked()); SQP:RefreshAllNameplates()
         end)
+        yOffset = yOffset - 22
+
+        -- Global master switch for the kill/loot/percent task icons; the
+        -- per-type checkboxes keep overriding it when they exist.
+        local typeIconsFrame = SQP:CreateStyledCheckbox(c, "Show quest type icons")
+        typeIconsFrame:SetPoint("TOPLEFT", 8, yOffset)
+        typeIconsFrame.checkbox:SetChecked(
+            SQPSettings.showKillIcon ~= false or SQPSettings.showLootIcon ~= false or SQPSettings.showPercentIcon == true)
+        SQP.optionControls.showQuestTypeIcons = typeIconsFrame.checkbox
+        typeIconsFrame.checkbox:SetScript("OnClick", function(self)
+            local enabled = self:GetChecked()
+            if enabled then
+                SQP:SetSetting('showKillIcon', true)
+                SQP:SetSetting('showLootIcon', true)
+                SQP:SetSetting('showPercentIcon', true)
+            else
+                SQP:SetSetting('showKillIcon', false)
+                SQP:SetSetting('showLootIcon', false)
+                SQP:SetSetting('showPercentIcon', false)
+            end
+            local oc = SQP.optionControls
+            if oc.showKillIcon then oc.showKillIcon:SetChecked(enabled) end
+            if oc.showLootIcon then oc.showLootIcon:SetChecked(enabled) end
+            if oc.showPercentIcon then oc.showPercentIcon:SetChecked(enabled) end
+            SQP:RefreshAllNameplates()
+            SQP:UpdatePreviewManually()
+        end)
         yOffset = yOffset - 30
         local resetButton = SQP:CreateStyledButton(c, SQP.L["OPTIONS_RESET"] or "Reset All Settings", 138, 20)
         resetButton:SetPoint("TOP", c, "TOP", 0, yOffset)
