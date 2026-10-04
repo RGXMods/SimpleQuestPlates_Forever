@@ -80,9 +80,11 @@ function SQP:CreatePreviewSection(parent)
         local unit = realPlate and realPlate.UnitFrame
         if not unit then return end
         -- Forever 1.60.1 NamePlates.xml places these Blizzard decorations
-        -- to the left of the health bar. Suppress only this preview's copies;
-        -- live nameplates retain their classification and raid-target icons.
-        for _, key in ipairs({ "ClassificationFrame", "RaidTargetFrame" }) do
+        -- around the health bar (classification/raid-target to the left,
+        -- aura buff/debuff lists over the plate). Suppress only this
+        -- preview's copies; live nameplates keep their classification,
+        -- raid-target, and aura icons.
+        for _, key in ipairs({ "ClassificationFrame", "RaidTargetFrame", "AurasFrame" }) do
             local decoration = unit[key]
             if decoration then
                 if not decoration._sqpPreviewHidden then

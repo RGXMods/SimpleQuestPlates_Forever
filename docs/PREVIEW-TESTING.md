@@ -30,9 +30,9 @@ After installing the test build and reloading the Forever beta:
   Its style, scale, name and level display must match in-world plates;
   if the template is unavailable, a Classic-constant mock is drawn instead —
   report which one you see.
-- The preview's left-hand Blizzard classification/raid-target decorations
-  must stay hidden, including after reopening Settings. Live plates retain
-  their normal decorations.
+- The preview's Blizzard classification/raid-target decorations and aura
+  buff/debuff lists must stay hidden, including after reopening Settings.
+  Live plates retain their normal decorations and auras.
 - On Kill, Loot and Percent, Left/Right is inline with Show Icon. Clicking
   checkbox text must toggle just like clicking the box; side buttons must not
   overlap/intercept the text. Check the narrowest supported panel width.
