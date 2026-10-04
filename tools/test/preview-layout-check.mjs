@@ -19,7 +19,10 @@ lua.ctx.layout=readFileSync(join(framework,'modules/ui/layout.lua'),'utf8');
 let failed=0;
 try{
 lua.doStringSync(`
-  UI={} RGXFramework={GetDesign=function()return{Unpack=function()return 1,1,1,1 end}end,API={CanAccessValue=function(v)return true end}}
+  UI={}
+  local design={Unpack=function()return 1,1,1,1 end,CreateSectionHeader=function(self,parent,text,icon)local h=CreateFrame('Frame',nil,parent)h:SetSize(300,32)h.title=text return h end}
+  RGXDesign=design
+  RGXFramework={GetDesign=function()return design end,API={CanAccessValue=function(v)return true end}}
   local methods={}
   local noop=function()end
   local function widget(parent)
@@ -92,10 +95,16 @@ lua.doStringSync(`
     return w
   end
   assert(loadstring(layout))('framework',UI)
+  -- Widget factories guard on _G.RGXUI; pages/tests sequence captures need
+  -- the same baseline as the real client (framework loads before consumers).
+  RGXUI=UI
   SQP={L={},optionControls={},DEFAULTS={scale=1.1,fontSize=12,anchor='RIGHT',relativeTo='LEFT',offsetX=0,offsetY=0,killIconSide='left',lootIconSide='right',killIconSize=12,lootIconSize=14,percentIconSize=8,killIconOffsetX=2,killIconOffsetY=15,lootIconOffsetX=-38,lootIconOffsetY=16,percentIconOffsetX=18,percentIconOffsetY=0},RefreshAllNameplates=noop,UpdateQuestFont=noop,GetOutlineInfo=function()return 0 end,IsAnimationEnabled=function()return false end,ApplyPulseDuration=noop,GetAnimationDuration=function()return 1 end}
   SQPSettings={scale=1.1,showQuestMarker=true,unifiedNameplates=false}
   assert(loadstring(defaults))()
   assert(loadstring(baselines))()
+  -- Load the widget module first so the harness stubs (so the) stand:
+  -- mocks defined after override module-level factories deterministically.
+  assert(loadstring(options_widgets))('SQP',SQP)
   function SQP:SetSetting(k,v)SQPSettings[k]=v end
   function SQP:SetControlTooltip()end
   function SQP:CreateOptionColumns(parent)return widget(parent),widget(parent)end
@@ -396,6 +405,17 @@ for(const [name,body]of [
     assert(renders>rendersBefore,'percent activate did not render its preview')
     assert(SQP._cascadingGlobalIntensity==false)
     SQP.previewFrame=nil
+  `],
+  ['page header helper builds the framework section header',`
+    local PageHeader=assert(SQP.CreatePageHeader,'helper missing')
+    local made={}
+    local realDesign=RGXDesign
+    local calls={}
+    RGXDesign={CreateSectionHeader=function(self,parent,text,icon)local h=CreateFrame('Frame',nil,parent)h.title=text calls[#calls+1]={text=text,icon=icon}return h end,Unpack=function()return 1,1,1 end}
+    local h=SQP:CreatePageHeader(CreateFrame('Frame'),'Test Page',nil)
+    RGXDesign=realDesign
+    assert(h.title=='Test Page' and #calls==1,'helper did not build via design section header')
+    assert(calls[1].icon==SQP.ICON_TEXTURE or calls[1].icon==nil,'helper dropped icon default')
   `],
   ['fallback slider does not recurse and accepts both call forms',`RGXUI=nil local store={amount=12} local s=SQP:CreateStyledSlider(host,{key='amount',storage=store,min=0,max=40,step=1,default=0}) s.SetValue(24) assert(store.amount==24) s:SetValue(30) assert(store.amount==30)`],
  ['client preview template anchors through the live path',`

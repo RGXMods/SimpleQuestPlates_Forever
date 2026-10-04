@@ -65,8 +65,9 @@ function SQP:CreatePreviewSection(parent)
             useReal = true
             wrapper:ClearAllPoints()
             -- Compact for the 84px banner: down from the template's native
-            -- 195px so dead space above the plate shrinks, preview stays legible.
-            wrapper:SetSize(380, 84)
+            -- 195px so dead space above the plate shrinks and the plate clears
+            -- the Kill/Loot/% row below. Preview stays legible.
+            wrapper:SetSize(380, 76)
             wrapper:SetPoint("TOP", previewFrame, "TOP", 0, -2)
             -- The template ships its own options-chrome border and PREVIEW
             -- label (atlas options_frame_child); the quest preview must show
@@ -108,8 +109,8 @@ function SQP:CreatePreviewSection(parent)
     nameplate = CreateFrame("Frame", nil, previewFrame)
     nameplate:SetSize(152, 44)
     -- Shift up with the tighter 84px banner: the mock stays clear of the
-    -- compact preview instead of sitting in the dead space at banner center.
-    nameplate:SetPoint("CENTER", previewFrame, "CENTER", 0, 16)
+    -- Kill/Loot/% buttons instead of sitting lower toward the button row.
+    nameplate:SetPoint("CENTER", previewFrame, "CENTER", 0, 22)
 
     -- Nameplate background (Blizzard nameplate navy)
     local nameplateBackground = nameplate:CreateTexture(nil, "BACKGROUND")
