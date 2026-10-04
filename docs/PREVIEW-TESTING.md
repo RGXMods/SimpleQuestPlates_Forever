@@ -58,7 +58,9 @@ After installing the test build and reloading the Forever beta:
 - Sliders display their value on hover without a permanent value above them.
 - Profiles: create, switch, copy, rename, reset and delete; duplicate names
   must not overwrite data, Default remains protected, and values/visuals
-  survive profile switches and `/reload`.
+  survive profile switches and `/reload`. Presets: apply Classic, Text
+  Only and Forever in turn; each must update the display, controls, plates
+  and preview together.
 - With a live quest nameplate visible, compare marker and requirement-icon
   placement at default and changed General scale/X/Y/side settings. Repeat
   with non-default nameplate/UI scales.

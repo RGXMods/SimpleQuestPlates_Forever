@@ -317,7 +317,26 @@ for(const [name,body]of [
     end
     SQP.previewFrame=nil SQPSettings.showPercentIcon=false
   `],
- ['side controls share the Show Icon row on all three pages',`
+  ['global display presets apply background, chip, and text modes',`
+    SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
+    SQPSettings.killLevelChip=true SQPSettings.killShowIconBackground=false
+    SQP.ActiveNameplates={} SQP.QuestPlates={} SQP.previewFrame=nil
+    SQP:ApplyGlobalDisplayStyle('chip')
+    assert(SQPSettings.unifiedNameplates==true and SQPSettings.showIconBackground==true,
+      'chip preset missed the global background keys')
+    assert(SQPSettings.killLevelChip==nil and SQPSettings.killShowIconBackground==nil,
+      'chip preset left stale per-type overrides')
+    SQP:ApplyGlobalDisplayStyle('text')
+    assert(SQPSettings.unifiedNameplates==false and SQPSettings.showIconBackground==false,
+      'text preset missed the global background keys')
+    assert(SQP:GetDisplayStyle('kill')=='text','text preset did not take effect')
+    SQP:ApplyGlobalDisplayStyle('icon')
+    assert(SQPSettings.unifiedNameplates==false and SQPSettings.showIconBackground==true,
+      'icon preset missed the global background keys')
+    assert(SQP:GetDisplayStyle('kill')=='icon','icon preset did not take effect')
+    SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
+  `],
+  ['side controls share the Show Icon row on all three pages',`
     for _,key in ipairs({'kill','loot','percent'})do
       local sideKey=key=='percent' and 'percentSignSide' or key..'IconSide'
       local title=key:sub(1,1):upper()..key:sub(2)
