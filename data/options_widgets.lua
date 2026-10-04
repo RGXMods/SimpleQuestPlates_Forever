@@ -258,7 +258,7 @@ function SQP:CreateFontSection(parent, typeKey, yOffset, activatePreviewFn)
 end
 
 -- Create a Display Style section: a Classic / Forever background dropdown plus
--- a "Text only" tick box. The two controls are mutually exclusive at their
+-- a "Text mode" tick box. The two controls are mutually exclusive at their
 -- scope: picking a dropdown entry clears text mode, and ticking the box
 -- clears the chip. Unticking returns to the inherited (per-type) or default
 -- (global) style.
@@ -359,7 +359,7 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
     yOffset = yOffset - 30
 
-    local textFrame = self:CreateStyledCheckbox(parent, "Text only")
+    local textFrame = self:CreateStyledCheckbox(parent, "Text mode")
     textFrame:SetPoint("TOPLEFT", 8, yOffset)
     textFrame.checkbox:SetChecked(IsTextMode())
     self.optionControls[settingKey .. "TextOnly"] = textFrame.checkbox

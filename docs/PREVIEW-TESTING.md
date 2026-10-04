@@ -46,14 +46,14 @@ After installing the test build and reloading the Forever beta:
   Reset All Animation Settings must restore `SQP.DEFAULTS`, including Kill,
   Loot and Percent main-animation switches and their displayed controls.
 - On Kill, Loot and Percent, select Classic and Forever in the dropdown, and
-  tick Text only. The chip must appear in both the preview and live quest
+  tick Text mode. The chip must appear in both the preview and live quest
   overlay, drawn with the client's level-indicator texture. Dropdown
-  selection clears Text only; unticking returns to the inherited style.
+  selection clears Text mode; unticking returns to the inherited style.
   General's background selection clears type overrides; a type reset
   restores General inheritance.
-- Tick Text only, untick back to Classic, then pick Forever, on each type
+- Tick Text mode, untick back to Classic, then pick Forever, on each type
   and Global. Classic/Forever retain numeric counts (`5` for the sample
-  Kill), while only Text only shows `5/8`. Ticking Text only while Forever
+  Kill), while only Text mode shows `5/8`. Ticking Text mode while Forever
   is selected must hide the chip, not stack on it.
 - Sliders display their value on hover without a permanent value above them.
 - Profiles: create, switch, copy, rename, reset and delete; duplicate names

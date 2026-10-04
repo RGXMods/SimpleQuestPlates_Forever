@@ -60,7 +60,7 @@ function SQP:CreateLootOptions(content)
         self:CreateIconSideSection(c, "loot", ActivateLoot, yOffset)
         yOffset = yOffset - 24
 
-        -- Display Style (Classic / Forever dropdown, Text only tick box)
+        -- Display Style (Classic / Forever dropdown, Text mode tick box)
         yOffset = self:CreateDisplayStyleSection(c, "loot", ActivateLoot, yOffset)
 
         yOffset = MakeSlider(c, "Size",     "lootIconSize",    14,   8,  40, yOffset)
