@@ -64,26 +64,40 @@ local function BuildGeneralPage(leftColumn)
     return generalCard
 end
 
--- Page 2: Display — quest display style, position & scale, nameplate side, font
+-- Page 2: Display — background style, text-only, position & scale, nameplate
+-- side, plus the font card on the left.
 local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
-    -- Position & Scale is the right-column root; Quest Display follows its
-    -- measured height rather than using a fixed pixel position.
-    local posCard = Card(rightColumn, "Position & Scale")
-
-    -- RIGHT: Quest Display
-    local questCard = Card(rightColumn, "Quest Display", { above = posCard })
+    -- RIGHT: Display (quest display style + position & scale in one card)
+    local displayCard = Card(rightColumn, "Display")
     do
-        local c = questCard.content
+        local c = displayCard.content
+        local yOffset = -8
 
         local Drops = _G.RGXDropdowns
         if Drops and type(Drops.CreateNestedDropdown) == "function" then
-            -- Three-way display mode: icon background, plain text, or the
-            -- native level chip. Storage stays backward compatible:
-            -- showIconBackground = icon/text toggle, unifiedNameplates = chip.
+            -- Two-way background: Classic icon or the Forever level chip.
+            -- Text-only lives in the tick box below. Storage stays backward
+            -- compatible: showIconBackground = icon/text toggle,
+            -- unifiedNameplates = chip.
             local function CurrentMode()
                 if SQPSettings.unifiedNameplates == true then return "chip" end
-                if SQPSettings.showIconBackground == false then return "text" end
                 return "icon"
+            end
+            local function RefreshGlobalStyle()
+                local dd = SQP.optionControls.unifiedDropdown
+                if dd and type(dd.SetValue) == "function" then
+                    dd:SetValue(CurrentMode())
+                end
+                local box = SQP.optionControls.showIconBackgroundTextOnly
+                if box and type(box.SetChecked) == "function" then
+                    box:SetChecked(SQPSettings.showIconBackground == false)
+                end
+            end
+            local function RefreshPlatesAndPreview()
+                SQP:RebuildQuestPlates()
+                if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
+                    SQP.previewFrame:UpdatePreview()
+                end
             end
             local dd = Drops:CreateNestedDropdown(c, {
                 label = "Background style",
@@ -93,39 +107,53 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                 value = CurrentMode(),
                 items = {
                     { text = "Classic (default)", value = "icon" },
-                    { text = "Text",                   value = "text" },
                     { text = "Forever",               value = "chip" },
                 },
                 onChange = function(value)
                     SQP:SetSetting('unifiedNameplates', value == "chip")
-                    SQP:SetSetting('showIconBackground', value ~= "text")
+                    SQP:SetSetting('showIconBackground', true)
                     for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
                         SQP:SetSetting(typeKey .. "LevelChip", nil)
                         SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
                         local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
                         if update then update() end
                     end
-                    SQP:RebuildQuestPlates()
-                    if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
-                        SQP.previewFrame:UpdatePreview()
-                    end
+                    RefreshGlobalStyle()
+                    RefreshPlatesAndPreview()
                 end,
             })
             if dd then
                 if dd.label then dd.label:SetTextColor(0.345, 0.745, 0.506) end
                 dd:SetPoint("TOPLEFT", c, "TOPLEFT", 8, -8)
                 dd:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -8)
-                SQP:SetControlTooltip(dd, "Pick every quest type's display: Classic icon, Text, or the Forever level-frame style.")
+                SQP:SetControlTooltip(dd, "Pick every quest type's background: Classic icon or the Forever level-frame style.")
                 SQP.optionControls.unifiedDropdown = dd
             end
-        end
-        questCard:FitContent()
-    end
+            yOffset = yOffset - ((dd and dd:GetHeight()) or 56) - 8
 
-    -- RIGHT: Position & Scale
-    do
-        local c = posCard.content
-        local yOffset = -8
+            local textFrame = SQP:CreateStyledCheckbox(c, "Text only")
+            textFrame:SetPoint("TOPLEFT", 8, yOffset)
+            textFrame.checkbox:SetChecked(SQPSettings.showIconBackground == false)
+            SQP.optionControls.showIconBackgroundTextOnly = textFrame.checkbox
+            textFrame.checkbox:SetScript("OnClick", function(self)
+                if self:GetChecked() then
+                    SQP:SetSetting('showIconBackground', false)
+                    SQP:SetSetting('unifiedNameplates', false)
+                else
+                    SQP:SetSetting('showIconBackground', nil)
+                    SQP:SetSetting('unifiedNameplates', nil)
+                end
+                for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
+                    SQP:SetSetting(typeKey .. "LevelChip", nil)
+                    SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
+                    local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
+                    if update then update() end
+                end
+                RefreshPlatesAndPreview()
+            end)
+            SQP:SetControlTooltip(textFrame, "Show only the count text, no icon background or chip.")
+            yOffset = yOffset - 22
+        end
 
         -- Range 0.5–1.5 centers the slider on 1; 1.1 is the baseline default.
         local scaleSlider = SQP:CreateStyledSlider(c, {
@@ -191,7 +219,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
             UpdateAnchorButtons()
             SQP:RefreshAllNameplates()
         end)
-        posCard:FitContent()
+        displayCard:FitContent()
     end
 
     -- LEFT: Font

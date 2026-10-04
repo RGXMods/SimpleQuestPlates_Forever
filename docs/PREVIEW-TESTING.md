@@ -44,12 +44,16 @@ After installing the test build and reloading the Forever beta:
 - Change global and per-type animation switches/intensities and toast values.
   Reset All Animation Settings must restore `SQP.DEFAULTS`, including Kill,
   Loot and Percent main-animation switches and their displayed controls.
-- On Kill, Loot and Percent, select Classic, Text and Forever. The chip must
-  appear in both the preview and live quest overlay, drawn with the client's
-  level-indicator texture. General's background selection clears type
-  overrides; a type reset restores General inheritance.
-- Cycle Text → Classic → Forever on each type and Global. Classic/Forever
-  retain numeric counts (`5` for the sample Kill), while only Text shows `5/8`.
+- On Kill, Loot and Percent, select Classic and Forever in the dropdown, and
+  tick Text only. The chip must appear in both the preview and live quest
+  overlay, drawn with the client's level-indicator texture. Dropdown
+  selection clears Text only; unticking returns to the inherited style.
+  General's background selection clears type overrides; a type reset
+  restores General inheritance.
+- Tick Text only, untick back to Classic, then pick Forever, on each type
+  and Global. Classic/Forever retain numeric counts (`5` for the sample
+  Kill), while only Text only shows `5/8`. Ticking Text only while Forever
+  is selected must hide the chip, not stack on it.
 - Sliders display their value on hover without a permanent value above them.
 - Profiles: create, switch, copy, rename, reset and delete; duplicate names
   must not overwrite data, Default remains protected, and values/visuals
