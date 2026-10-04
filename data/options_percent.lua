@@ -2,7 +2,7 @@
 -- RGX | Simple Quest Plates! - options_percent.lua
 
 -- Author: DonnieDice
--- Description: Percent tab — Icon, Animation, and Layout cards in framework columns
+-- Description: Percent tab — Display, Color, and Animation cards in framework columns
 --=====================================================================================
 
 local addonName, SQP = ...
@@ -42,10 +42,10 @@ function SQP:CreatePercentOptions(content)
         return yOff - slider:GetHeight() - 8
     end
 
-    -- LEFT: Percent Icon
-    local iconCard = SQP:CreateCard(leftColumn, "Percent Icon")
+    -- LEFT: Percent Display (show + side, display style, size/offsets, reset)
+    local displayCard = SQP:CreateCard(leftColumn, "Percent Display")
     do
-        local c = iconCard.content
+        local c = displayCard.content
         local yOffset = -8
 
         local showFrame = self:CreateStyledCheckbox(c, "Show Percent Icon")
@@ -64,57 +64,64 @@ function SQP:CreatePercentOptions(content)
 
         yOffset = self:CreateDisplayStyleSection(c, "percent", ActivatePercent, yOffset)
 
-        -- Percent Color
-        local colorHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        SQP:ApplyDefaultFont(colorHeader)
-        colorHeader:SetPoint("TOPLEFT", 8, yOffset)
-        colorHeader:SetText("|cff58be81Color|r")
-        yOffset = yOffset - 16
+        yOffset = MakeSlider(c, "Size",     "percentIconSize",    8,   8,  40, yOffset)
+        yOffset = MakeSlider(c, "Offset X", "percentIconOffsetX",  0, -80, 80, yOffset)
+        yOffset = MakeSlider(c, "Offset Y", "percentIconOffsetY",  0, -80, 80, yOffset)
 
-        local pctDefault = {0.2, 1, 1}
-        local colorBtn = CreateFrame("Button", nil, c)
-        colorBtn:SetSize(20, 20)
-        colorBtn:SetPoint("TOPLEFT", 8, yOffset)
-        local cbg = colorBtn:CreateTexture(nil, "BACKGROUND")
-        cbg:SetAllPoints(); cbg:SetColorTexture(0, 0, 0, 1)
-        local sw = colorBtn:CreateTexture(nil, "ARTWORK")
-        sw:SetSize(16, 16); sw:SetPoint("CENTER")
-        sw:SetColorTexture(unpack(SQPSettings.percentColor or pctDefault))
-        SQP.optionControls.percentColorSwatch = sw
-
-        local colorLbl = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        SQP:ApplyDefaultFont(colorLbl)
-        colorLbl:SetPoint("LEFT", colorBtn, "RIGHT", 6, 0)
-        colorLbl:SetText("Percent Color")
-        colorLbl:SetTextColor(_G.RGXDesign:Unpack("text"))
-
-        local colorReset = self:CreateInlineResetButton(c, function()
-            SQP:SetSetting('percentColor', {unpack(pctDefault)})
-            sw:SetColorTexture(unpack(pctDefault)); SQP:RefreshAllNameplates()
-        end)
-        _G.RGXUI:AnchorRowReset(c, colorReset, colorBtn)
-
-        colorBtn:SetScript("OnClick", function()
+        yOffset = yOffset - 10
+        local resetBtn = self:CreateStyledButton(c, "Reset Percent Settings", 160, 22)
+        resetBtn:SetPoint("TOP", c, "TOP", 0, yOffset)
+        resetBtn:SetScript("OnClick", function()
+            local D = SQP.DEFAULTS
+            local oc = SQP.optionControls
+            SQP:SetSetting('showPercentIcon', D.showPercentIcon)
+            SQP:SetSetting('percentShowIconBackground', D.percentShowIconBackground)
+            SQP:SetSetting('percentLevelChip', nil)
+            SQP:SetSetting('percentSignSide', D.percentSignSide)
+            SQP:SetSetting('animateQuestIcons', D.animateQuestIcons)
+            SQP:SetSetting('percentAnimateMain', D.percentAnimateMain)
+            SQP:SetSetting('percentAnimationIntensity', D.percentAnimationIntensity)
+            SQP:SetSetting('percentColor', {unpack(D.percentColor)})
+            SQP:SetSetting('percentTintIcon', D.percentTintIcon)
+            SQP:SetSetting('percentTintIconColor', {unpack(D.percentTintIconColor)})
+            SQP:SetSetting('percentIconSize', D.percentIconSize)
+            SQP:SetSetting('percentFontSize', D.percentFontSize)
+            SQP:SetSetting('percentFontFamily', D.percentFontFamily)
+            SQP:SetSetting('percentIconOffsetX', D.percentIconOffsetX)
+            SQP:SetSetting('percentIconOffsetY', D.percentIconOffsetY)
+            if oc.showPercentIcon then oc.showPercentIcon:SetChecked(D.showPercentIcon) end
+            if oc.percentShowIconBackgroundStyleUpdater then oc.percentShowIconBackgroundStyleUpdater() end
+            if oc.updatePercentSignSideButtons then oc.updatePercentSignSideButtons() end
+            if oc.animateQuestIconsPercent then oc.animateQuestIconsPercent:SetChecked(D.animateQuestIcons) end
+            if oc.animateQuestIcons then oc.animateQuestIcons:SetChecked(D.animateQuestIcons) end
+            if oc.animateQuestIconsLoot then oc.animateQuestIconsLoot:SetChecked(D.animateQuestIcons) end
+            if oc.percentAnimateMain then oc.percentAnimateMain:SetChecked(D.percentAnimateMain) end
+            if oc.percentAnimationIntensity and oc.percentAnimationIntensity.SetValue then
+                oc.percentAnimationIntensity.SetValue(D.percentAnimationIntensity)
+            end
+            if oc.percentTintIcon then oc.percentTintIcon:SetChecked(D.percentTintIcon) end
+            if oc.percentColorSwatch then oc.percentColorSwatch:SetColorTexture(unpack(D.percentColor)) end
+            if oc.percentTintIconColorSwatch then oc.percentTintIconColorSwatch:SetColorTexture(unpack(D.percentTintIconColor)) end
+            if oc.percentTintIconAlphaUpdate then oc.percentTintIconAlphaUpdate() end
+            if oc.percentIconSize   then oc.percentIconSize.SetValue(D.percentIconSize) end
+            if oc.percentIconOffsetX then oc.percentIconOffsetX.SetValue(D.percentIconOffsetX) end
+            if oc.percentIconOffsetY then oc.percentIconOffsetY.SetValue(D.percentIconOffsetY) end
+            if oc.percentFontSize then oc.percentFontSize.SetValue(SQP:GetSettingBaseline("percentFontSize")) end
+            if oc.percentFontFamily and type(oc.percentFontFamily.Reset) == "function" then
+                oc.percentFontFamily:Reset()
+            elseif oc.percentFontFamily and type(oc.percentFontFamily.SetPath) == "function" then
+                oc.percentFontFamily:SetPath(D.percentFontFamily)
+            elseif oc.percentFontFamily and UIDropDownMenu_SetText then
+                UIDropDownMenu_SetText(oc.percentFontFamily, "Friz Quadrata")
+            end
+            SQP:RefreshAllNameplates()
             ActivatePercent()
-            local r, g, b = unpack(SQPSettings.percentColor or pctDefault)
-            _G.RGXColors:OpenPicker({
-                r = r, g = g, b = b,
-                onChanged = function(_, nr, ng, nb)
-                    SQP:SetSetting('percentColor', {nr, ng, nb})
-                    sw:SetColorTexture(nr, ng, nb)
-                    SQP:RefreshAllNameplates()
-                end,
-            })
         end)
-        yOffset = yOffset - 28
-
-        -- Percent sign tinting row (reset right-aligned)
-        yOffset = self:CreateMiniIconTintSection(c, "percent", ActivatePercent, yOffset)
-        iconCard:FitContent()
+        displayCard:FitContent()
     end
 
     -- LEFT: Percent Animation
-    local animCard = SQP:CreateCard(leftColumn, "Percent Animation", { above = iconCard })
+    local animCard = SQP:CreateCard(leftColumn, "Percent Animation", { above = displayCard })
     do
         local c = animCard.content
         local yOffset = -8
@@ -172,65 +179,58 @@ function SQP:CreatePercentOptions(content)
         animCard:FitContent()
     end
 
-    -- RIGHT: Percent Layout
-    local layoutCard = SQP:CreateCard(rightColumn, "Percent Layout")
+    -- RIGHT: Percent Color
+    local colorCard = SQP:CreateCard(rightColumn, "Percent Color")
     do
-        local c = layoutCard.content
+        local c = colorCard.content
         local yOffset = -8
 
-        yOffset = MakeSlider(c, "Size",     "percentIconSize",    8,   8,  40, yOffset)
-        yOffset = MakeSlider(c, "Offset X", "percentIconOffsetX",  0, -80, 80, yOffset)
-        yOffset = MakeSlider(c, "Offset Y", "percentIconOffsetY",  0, -80, 80, yOffset)
+        -- Percent Color
+        local colorHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        SQP:ApplyDefaultFont(colorHeader)
+        colorHeader:SetPoint("TOPLEFT", 8, yOffset)
+        colorHeader:SetText("|cff58be81Color|r")
+        yOffset = yOffset - 16
 
-        yOffset = yOffset - 10
-        local resetBtn = self:CreateStyledButton(c, "Reset Percent Settings", 160, 22)
-        resetBtn:SetPoint("TOP", c, "TOP", 0, yOffset)
-        resetBtn:SetScript("OnClick", function()
-            local D = SQP.DEFAULTS
-            local oc = SQP.optionControls
-            SQP:SetSetting('showPercentIcon', D.showPercentIcon)
-            SQP:SetSetting('percentShowIconBackground', D.percentShowIconBackground)
-            SQP:SetSetting('percentLevelChip', nil)
-            SQP:SetSetting('percentSignSide', D.percentSignSide)
-            SQP:SetSetting('animateQuestIcons', D.animateQuestIcons)
-            SQP:SetSetting('percentAnimateMain', D.percentAnimateMain)
-            SQP:SetSetting('percentAnimationIntensity', D.percentAnimationIntensity)
-            SQP:SetSetting('percentColor', {unpack(D.percentColor)})
-            SQP:SetSetting('percentTintIcon', D.percentTintIcon)
-            SQP:SetSetting('percentTintIconColor', {unpack(D.percentTintIconColor)})
-            SQP:SetSetting('percentIconSize', D.percentIconSize)
-            SQP:SetSetting('percentFontSize', D.percentFontSize)
-            SQP:SetSetting('percentFontFamily', D.percentFontFamily)
-            SQP:SetSetting('percentIconOffsetX', D.percentIconOffsetX)
-            SQP:SetSetting('percentIconOffsetY', D.percentIconOffsetY)
-            if oc.showPercentIcon then oc.showPercentIcon:SetChecked(D.showPercentIcon) end
-            if oc.percentShowIconBackgroundStyleUpdater then oc.percentShowIconBackgroundStyleUpdater() end
-            if oc.updatePercentSignSideButtons then oc.updatePercentSignSideButtons() end
-            if oc.animateQuestIconsPercent then oc.animateQuestIconsPercent:SetChecked(D.animateQuestIcons) end
-            if oc.animateQuestIcons then oc.animateQuestIcons:SetChecked(D.animateQuestIcons) end
-            if oc.animateQuestIconsLoot then oc.animateQuestIconsLoot:SetChecked(D.animateQuestIcons) end
-            if oc.percentAnimateMain then oc.percentAnimateMain:SetChecked(D.percentAnimateMain) end
-            if oc.percentAnimationIntensity and oc.percentAnimationIntensity.SetValue then
-                oc.percentAnimationIntensity.SetValue(D.percentAnimationIntensity)
-            end
-            if oc.percentTintIcon then oc.percentTintIcon:SetChecked(D.percentTintIcon) end
-            if oc.percentColorSwatch then oc.percentColorSwatch:SetColorTexture(unpack(D.percentColor)) end
-            if oc.percentTintIconColorSwatch then oc.percentTintIconColorSwatch:SetColorTexture(unpack(D.percentTintIconColor)) end
-            if oc.percentTintIconAlphaUpdate then oc.percentTintIconAlphaUpdate() end
-            if oc.percentIconSize   then oc.percentIconSize.SetValue(D.percentIconSize) end
-            if oc.percentIconOffsetX then oc.percentIconOffsetX.SetValue(D.percentIconOffsetX) end
-            if oc.percentIconOffsetY then oc.percentIconOffsetY.SetValue(D.percentIconOffsetY) end
-            if oc.percentFontSize then oc.percentFontSize.SetValue(SQP:GetSettingBaseline("percentFontSize")) end
-            if oc.percentFontFamily and type(oc.percentFontFamily.Reset) == "function" then
-                oc.percentFontFamily:Reset()
-            elseif oc.percentFontFamily and type(oc.percentFontFamily.SetPath) == "function" then
-                oc.percentFontFamily:SetPath(D.percentFontFamily)
-            elseif oc.percentFontFamily and UIDropDownMenu_SetText then
-                UIDropDownMenu_SetText(oc.percentFontFamily, "Friz Quadrata")
-            end
-            SQP:RefreshAllNameplates()
-            ActivatePercent()
+        local pctDefault = {0.2, 1, 1}
+        local colorBtn = CreateFrame("Button", nil, c)
+        colorBtn:SetSize(20, 20)
+        colorBtn:SetPoint("TOPLEFT", 8, yOffset)
+        local cbg = colorBtn:CreateTexture(nil, "BACKGROUND")
+        cbg:SetAllPoints(); cbg:SetColorTexture(0, 0, 0, 1)
+        local sw = colorBtn:CreateTexture(nil, "ARTWORK")
+        sw:SetSize(16, 16); sw:SetPoint("CENTER")
+        sw:SetColorTexture(unpack(SQPSettings.percentColor or pctDefault))
+        SQP.optionControls.percentColorSwatch = sw
+
+        local colorLbl = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        SQP:ApplyDefaultFont(colorLbl)
+        colorLbl:SetPoint("LEFT", colorBtn, "RIGHT", 6, 0)
+        colorLbl:SetText("Percent Color")
+        colorLbl:SetTextColor(_G.RGXDesign:Unpack("text"))
+
+        local colorReset = self:CreateInlineResetButton(c, function()
+            SQP:SetSetting('percentColor', {unpack(pctDefault)})
+            sw:SetColorTexture(unpack(pctDefault)); SQP:RefreshAllNameplates()
         end)
-        layoutCard:FitContent()
+        _G.RGXUI:AnchorRowReset(c, colorReset, colorBtn)
+
+        colorBtn:SetScript("OnClick", function()
+            ActivatePercent()
+            local r, g, b = unpack(SQPSettings.percentColor or pctDefault)
+            _G.RGXColors:OpenPicker({
+                r = r, g = g, b = b,
+                onChanged = function(_, nr, ng, nb)
+                    SQP:SetSetting('percentColor', {nr, ng, nb})
+                    sw:SetColorTexture(nr, ng, nb)
+                    SQP:RefreshAllNameplates()
+                end,
+            })
+        end)
+        yOffset = yOffset - 28
+
+        -- Percent sign tinting row (reset right-aligned)
+        yOffset = self:CreateMiniIconTintSection(c, "percent", ActivatePercent, yOffset)
+        colorCard:FitContent()
     end
 end
