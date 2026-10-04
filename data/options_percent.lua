@@ -120,8 +120,8 @@ function SQP:CreatePercentOptions(content)
         displayCard:FitContent()
     end
 
-    -- LEFT: Percent Animation
-    local animCard = SQP:CreateCard(leftColumn, "Percent Animation", { above = displayCard })
+    -- RIGHT: Percent Animation (top of the right column)
+    local animCard = SQP:CreateCard(rightColumn, "Percent Animation")
     do
         local c = animCard.content
         local yOffset = -8
@@ -179,8 +179,8 @@ function SQP:CreatePercentOptions(content)
         animCard:FitContent()
     end
 
-    -- RIGHT: Percent Color
-    local colorCard = SQP:CreateCard(rightColumn, "Percent Color")
+    -- RIGHT: Percent Color (under Animation)
+    local colorCard = SQP:CreateCard(rightColumn, "Percent Color", { above = animCard })
     do
         local c = colorCard.content
         local yOffset = -8
