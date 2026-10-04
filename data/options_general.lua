@@ -312,12 +312,19 @@ local function BuildAnimationPage(page)
                 -- The framework invokes onChange once during construction;
                 -- do not overwrite saved per-type intensities at panel open.
                 if not intensityReady then return end
+                -- Cascade: mark the loop so child slider updates do not fire
+                -- their per-type preview activations (which would flip the
+                -- visible preview to the last-updated type), then re-render
+                -- the current preview once at the end.
+                SQP._cascadingGlobalIntensity = true
                 for _, key in ipairs({ "killAnimationIntensity", "lootAnimationIntensity", "percentAnimationIntensity" }) do
                     SQP:SetSetting(key, val)
                     local slider = SQP.optionControls[key]
                     if slider and slider.SetValue then slider.SetValue(val) end
                 end
+                SQP._cascadingGlobalIntensity = false
                 SQP:RefreshAllNameplates()
+                if SQP.UpdatePreviewManually then SQP:UpdatePreviewManually() end
             end,
         })
         intensityReady = true

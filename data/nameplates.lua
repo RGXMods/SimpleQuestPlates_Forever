@@ -876,3 +876,14 @@ function SQP:RefreshAllNameplates()
         self.previewFrame:UpdatePreview()
     end
 end
+
+-- Settings-driven preview sync without re-arms: some controls activate a
+-- specific preview mode by design (type selects, style changes), while setting
+-- sliders (sizes, animation intensity, side buttons) must only re-render the
+-- currently displayed preview. Shared guard used by every card handler.
+function SQP:UpdatePreviewManually()
+    local p = SQP.previewFrame
+    if p and type(p.UpdatePreview) == "function" and p.questType then
+        pcall(function() p:UpdatePreview() end)
+    end
+end
