@@ -94,7 +94,7 @@ function SQP:CreateOptionsPanel()
                         description = "Create, switch, and manage your saved profiles.",
                         presets = {
                             { name = "Classic",   description = "Floating quest icons",        mode = "icon" },
-                            { name = "Text Only", description = "Counts only, no backgrounds", mode = "text" },
+                            { name = "Text Mode", description = "Counts only, no backgrounds", mode = "text" },
                             { name = "Forever",   description = "Native level-frame style",     mode = "chip" },
                         },
                         onPreset = function(preset)

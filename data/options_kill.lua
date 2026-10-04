@@ -60,7 +60,7 @@ function SQP:CreateKillOptions(content)
         self:CreateIconSideSection(c, "kill", ActivateKill, yOffset)
         yOffset = yOffset - 24
 
-        -- Display Style (Classic / Forever dropdown, Text only tick box)
+        -- Display Style (Classic / Forever dropdown, Text mode tick box)
         yOffset = self:CreateDisplayStyleSection(c, "kill", ActivateKill, yOffset)
 
         yOffset = MakeSlider(c, "Size",     "killIconSize",    12,  8,  40, yOffset)

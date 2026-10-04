@@ -140,7 +140,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
             end
             yOffset = yOffset - ((dd and dd:GetHeight()) or 56) - 8
 
-            local textFrame = SQP:CreateStyledCheckbox(c, "Text only")
+            local textFrame = SQP:CreateStyledCheckbox(c, "Text mode")
             textFrame:SetPoint("TOPLEFT", 8, yOffset)
             textFrame.checkbox:SetChecked(SQPSettings.showIconBackground == false)
             SQP.optionControls.showIconBackgroundTextOnly = textFrame.checkbox
