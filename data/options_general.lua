@@ -464,12 +464,23 @@ local function BuildAnimationPage(page)
 end
 
 -- The preview selectors own the per-type pages; the tab row stays global.
+-- One shared geometry rule for pages with headers: cards live in an inset
+-- below the header, so they can never draw over it.
+function SQP:CreatePageArea(content, title)
+    local header = SQP:CreatePageHeader(content, title)
+    local inset = CreateFrame("Frame", nil, content)
+    -- Header is 32px; the 8px gap matches every other page transition.
+    inset:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -40)
+    inset:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0)
+    return inset, header
+end
+
 function SQP:CreateGlobalOptions(content)
     if not self.optionControls then self.optionControls = {} end
-    SQP:CreatePageHeader(content, "Global")
+    local contentArea = SQP:CreatePageArea(content, "Global")
     local pages = {}
     for i = 1, 4 do
-        local page = CreateFrame("Frame", nil, content)
+        local page = CreateFrame("Frame", nil, contentArea)
         page:SetAllPoints()
         page:SetShown(i == 1)
         pages[i] = page
@@ -505,6 +516,6 @@ end
 
 function SQP:CreateAnimationOptions(content)
     if not self.optionControls then self.optionControls = {} end
-    SQP:CreatePageHeader(content, "Animation")
-    BuildAnimationPage(content)
+    local contentArea = SQP:CreatePageArea(content, "Animation")
+    BuildAnimationPage(contentArea)
 end
