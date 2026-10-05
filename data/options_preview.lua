@@ -492,7 +492,12 @@ function SQP:CreatePreviewSection(parent)
             local region = self[key]
             if region and region.SetAlpha then region:SetAlpha(1) end
         end
+        -- The banner's overlay must never outlive the options window: hides
+        -- from panel close, Settings hide, and any detached preview parent.
+        if self.plate then self.plate:Hide() end
+        if self.questFrame then self.questFrame:Hide() end
     end)
+
 
     -- Update function
     function previewFrame:UpdatePreview()
@@ -873,14 +878,22 @@ function SQP:CreatePreviewSection(parent)
 
     -- Restart animation when the panel becomes visible again
     previewFrame:SetScript("OnShow", function(self)
+        if self.plate then self.plate:Show() end
         self:UpdatePreview()
     end)
 
-    -- Type-switcher button alpha updater
+    -- Type-switcher button state: alpha dims inactive buttons and the
+    -- framework's selection styling keeps the current type highlighted.
     local function UpdateTypeButtons(activeType)
         killTypeBtn:SetAlpha(activeType == "kill"    and 1 or 0.45)
         lootTypeBtn:SetAlpha(activeType == "loot"    and 1 or 0.45)
         pctTypeBtn:SetAlpha( activeType == "percent" and 1 or 0.45)
+        if killTypeBtn.SetSelected then
+            -- Selected type keeps its hover highlight after the pointer leaves.
+            killTypeBtn:SetSelected(activeType == "kill")
+            lootTypeBtn:SetSelected(activeType == "loot")
+            pctTypeBtn:SetSelected(activeType == "percent")
+        end
     end
     UpdateTypeButtons(nil)
     previewFrame.clearTypeSelection = function()
