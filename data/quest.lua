@@ -75,19 +75,6 @@ local function NormalizeObjectiveText(text)
     return text
 end
 
-local function TokenizeText(text)
-    if not text then return {}, {} end
-    local list = {}
-    local set = {}
-    for token in text:gmatch("%S+") do
-        if #token > 1 then
-            list[#list + 1] = token
-            set[token] = true
-        end
-    end
-    return list, set
-end
-
 local function GetRemainingFromObjectiveText(text)
     if not text then return nil end
     local x, y = strmatch(text, '(%d+)%s*/%s*(%d+)')
@@ -106,29 +93,10 @@ local function ObjectiveTextMatchesUnit(objText, unitNameNorm, objectiveType)
     if not objText or not unitNameNorm then return false end
     local objNorm = NormalizeObjectiveText(objText)
     if not objNorm or objNorm == "" then return false end
-    if objNorm:find(unitNameNorm, 1, true) or unitNameNorm:find(objNorm, 1, true) then
-        return true
-    end
-    local listA, setA = TokenizeText(objNorm)
-    local listB, setB = TokenizeText(unitNameNorm)
-    if #listA == 0 or #listB == 0 then return false end
-    local overlap = 0
-    for token in pairs(setA) do
-        if setB[token] then
-            overlap = overlap + 1
-        end
-    end
-    if overlap == 0 then return false end
-    if objectiveType == "item" or objectiveType == "object" then
-        -- A single shared junk token ("fin", "oil", "bone") must not mark a
-        -- mob that does not actually drop the objective item on its tooltip.
-        -- Two tokens or full containment are required on the fallback path.
-        return overlap >= 2
-    end
-    if #listA <= 1 or #listB <= 1 then
-        return overlap >= 1
-    end
-    return overlap >= 2
+    if unitNameNorm == "" then return false end
+    -- Names must match in full at word boundaries. Shared family words and
+    -- substrings (Wolf/Direwolf) are not evidence this unit is an objective.
+    return (" " .. objNorm .. " "):find(" " .. unitNameNorm .. " ", 1, true) ~= nil
 end
 
 local function FindObjectiveTypeForText(text)
@@ -347,7 +315,7 @@ function SQP:GetQuestProgress(unitID)
             if not questID and not questLogIndex then return end
             local objectives = SQP.Compat.GetQuestObjectives(questID, questLogIndex)
             for _, obj in ipairs(objectives) do
-                if obj.text and ObjectiveTextMatchesUnit(obj.text, unitNameNorm, obj.type) then
+                if not obj.finished and obj.text and ObjectiveTextMatchesUnit(obj.text, unitNameNorm, obj.type) then
                     local numLeft, isPercent = GetRemainingFromObjectiveText(obj.text)
                     if numLeft and numLeft > 0 then
                         if obj.type == 'item' or obj.type == 'object' then
@@ -477,7 +445,7 @@ function SQP:UpdateQuestIcon(plate, unitID)
     local displayText = "?"
     local displayColor = {1, 1, 1} -- Default white
     local function IsIconStyleEnabled(typeKey)
-        return self:GetDisplayStyle(typeKey) ~= "text"
+        return not self:UsesTextMode(typeKey)
     end
 
     if progressGlob and questType ~= 2 then
@@ -551,6 +519,8 @@ function SQP:UpdateQuestIcon(plate, unitID)
 
     -- Per-type tinting: determine effective quest type
     local effectiveType = (Q.hasItem and "loot") or ((questType or 0) == 3 and "percent") or "kill"
+    if SQPSettings[effectiveType .. "Enabled"] == false then showIcon = false end
+    if Q._anchorTarget then self:ApplyQuestLayout(Q, Q._anchorTarget) end
     local killTintEnabled = SQPSettings.killTintIcon and SQPSettings.killTintIconColor
     local killTintR, killTintG, killTintB, killTintA = 1, 1, 1, 1
     if killTintEnabled then
@@ -696,7 +666,7 @@ function SQP:UpdateQuestIcon(plate, unitID)
         -- Update and show the icon; percent quests show number+% in percentIcon, not iconText
         if showPercentIcon then
             -- Icon mode: show the number on the jellybean; text mode: number is inside percentIcon
-            if percentIconMode then
+            if percentIconMode or unified then
                 Q.iconText:SetText(tostring(displayText))
                 if Q.iconTextOutline then Q.iconTextOutline:SetText(tostring(displayText)) end
             else
@@ -831,6 +801,8 @@ function SQP:UpdateQuestIcon(plate, unitID)
         self:ClearQuestPulseSync(Q)
     end
 
+    self:UpdateTextPulses(Q, effectiveType, showIcon)
+    Q:SetShown(showIcon)
     reportSlowPath("UpdateQuestIcon", started)
 end
 

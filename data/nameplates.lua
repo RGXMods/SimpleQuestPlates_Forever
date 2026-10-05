@@ -70,12 +70,17 @@ function SQP:UsesLevelChip(typeKey)
     return value == true
 end
 
--- Background styles share numeric counts. Only explicit Text uses ratios.
-function SQP:GetDisplayStyle(typeKey)
-    if self:UsesLevelChip(typeKey) then return "chip" end
+function SQP:UsesTextMode(typeKey)
     local value = typeKey and SQPSettings[typeKey .. "ShowIconBackground"]
     if value == nil then value = SQPSettings.showIconBackground end
-    return value == false and "text" or "icon"
+    return value == false
+end
+
+-- Background choice and text format are independent: Forever can retain
+-- its chip while Text Mode formats the count as an objective ratio.
+function SQP:GetDisplayStyle(typeKey)
+    if self:UsesLevelChip(typeKey) then return "chip" end
+    return self:UsesTextMode(typeKey) and "text" or "icon"
 end
 
 -- This is the sole placement/size model for real and preview overlays.
@@ -85,8 +90,11 @@ function SQP:ApplyQuestLayout(questFrame, anchorTarget, parentScaleRatio)
     questFrame:SetScale(self:GetSettingValue("scale") * (parentScaleRatio or 1))
     icon:SetSize(28, 22)
     icon:ClearAllPoints()
+    local typeKey = questFrame._displayType or (questFrame.hasItem and "loot") or (questFrame.questType == 3 and "percent") or "kill"
+    local x = self:GetSettingValue("offsetX")
+    if self:UsesTextMode(typeKey) then x = x - 3 end
     icon:SetPoint(self:GetSettingValue("anchor"), anchorTarget,
-        self:GetSettingValue("relativeTo"), self:GetSettingValue("offsetX"), self:GetSettingValue("offsetY"))
+        self:GetSettingValue("relativeTo"), x, self:GetSettingValue("offsetY"))
     for _, key in ipairs({ "kill", "loot" }) do
         local badge = questFrame[key .. "Icon"]
         if badge then
@@ -133,6 +141,13 @@ function SQP:AnchorTaskIcon(iconTex, icon, typeKey)
     local x = self:GetSettingValue(typeKey .. "IconOffsetX")
     local y = self:GetSettingValue(typeKey .. "IconOffsetY")
     local side = self:GetSettingValue(typeKey .. "IconSide")
+    if self:GetSettingValue("anchor") == "LEFT" then
+        side = "right"
+        -- Legacy Loot uses a negative X baseline to reach the left badge slot.
+        -- Preserve user adjustments while resolving the right-side baseline.
+        local legacyX = typeKey == "loot" and -38 or 2
+        x = x - legacyX + 2
+    end
     iconTex:ClearAllPoints()
     if side == "left" then
         iconTex:SetPoint('TOPRIGHT', icon, 'BOTTOMLEFT', x, y)
@@ -310,7 +325,7 @@ function SQP:UpdateQuestToast(questFrame, replay)
     questFrame.toastFade:SetDuration(duration)
 
     local group = questFrame.ani
-    if SQPSettings.enabled == false or SQPSettings.showQuestMarker == false
+    if SQPSettings.enabled == false or SQPSettings.animationsEnabled == false or SQPSettings.showQuestMarker == false
         or not questFrame.toastSelected then
         if group:IsPlaying() then group:Stop() end
         questFrame.qmark:SetAlpha(0)
@@ -319,6 +334,36 @@ function SQP:UpdateQuestToast(questFrame, replay)
         -- plate show); ordinary preview/layout refreshes must not restart it.
         if group:IsPlaying() then group:Stop() end
         group:Play()
+    end
+end
+
+-- Animate visible count text when Text Mode hides the jellybean.
+function SQP:UpdateTextPulses(questFrame, typeKey, visible)
+    local enabled = visible and self:UsesTextMode(typeKey) and self:IsAnimationEnabled(typeKey, false)
+    for _, key in ipairs({ "iconText", "iconTextOutline" }) do
+        local region = questFrame[key]
+        if region then
+            local pulse = questFrame[key .. "Pulse"]
+            if enabled and not pulse then
+                pulse = region:CreateAnimationGroup()
+                pulse:SetLooping("REPEAT")
+                local out = pulse:CreateAnimation("Alpha")
+                out:SetOrder(1); out:SetFromAlpha(1); out:SetToAlpha(0.15); out:SetDuration(0.5)
+                local back = pulse:CreateAnimation("Alpha")
+                back:SetOrder(2); back:SetFromAlpha(0.15); back:SetToAlpha(1); back:SetDuration(0.5)
+                pulse._fadeOut = out; pulse._fadeIn = back
+                questFrame[key .. "Pulse"] = pulse
+            end
+            if pulse then
+                self:ApplyPulseDuration(pulse, self:GetAnimationDuration(typeKey, true))
+                if enabled then
+                    if not pulse:IsPlaying() then pulse:Play() end
+                else
+                    if pulse:IsPlaying() then pulse:Stop() end
+                    region:SetAlpha(1)
+                end
+            end
+        end
     end
 end
 
@@ -700,7 +745,7 @@ function SQP:RefreshAllNameplates()
     for plate, questFrame in pairs(self.QuestPlates) do
         if questFrame and questFrame.icon and not questFrame.isPreview then
             local function IsIconStyleEnabled(typeKey)
-                return self:GetDisplayStyle(typeKey) ~= "text"
+                return not self:UsesTextMode(typeKey)
             end
 
             self:RefreshQuestPlateAnchor(plate, true)

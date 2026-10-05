@@ -92,11 +92,24 @@ function SQP:CreateOptionsPanel()
                         db = SQP.db,
                         title = "Profiles",
                         icon = SQP.ICON_TEXTURE,
-                        description = "Create, switch, and manage your saved profiles.",
+                        description = "",
+                        createFromCurrent = true,
+                        pagedPresets = true,
+                        height = 176,
+                        presetsPerPage = 6,
                         presets = {
                             { name = "Classic",   description = "Floating quest icons",        mode = "icon" },
                             { name = "Text Mode", description = "Counts only, no backgrounds", mode = "text" },
                             { name = "Forever",   description = "Native level-frame style",     mode = "chip" },
+                            { name = "Future Preset 1", disabled = true },
+                            { name = "Future Preset 2", disabled = true },
+                            { name = "Future Preset 3", disabled = true },
+                            { name = "Future Preset 4", disabled = true },
+                            { name = "Future Preset 5", disabled = true },
+                            { name = "Future Preset 6", disabled = true },
+                            { name = "Future Preset 7", disabled = true },
+                            { name = "Future Preset 8", disabled = true },
+                            { name = "Future Preset 9", disabled = true },
                         },
                         onPreset = function(preset)
                             if preset and preset.mode then
@@ -133,6 +146,15 @@ function SQP:OpenOptions()
         self:CreateOptionsPanel()
     end
     if self.optionsPanel then self.optionsPanel:Open() end
+end
+
+function SQP:ToggleOptions()
+    if InCombatLockdown() then
+        self:PrintMessage(self.L["ERROR_COMBAT_LOCKDOWN"] or "Cannot open options during combat.")
+        return
+    end
+    if not self.optionsPanel then self:CreateOptionsPanel() end
+    if self.optionsPanel then self.optionsPanel:Toggle() end
 end
 
 StaticPopupDialogs["SQP_RESET_CONFIRM"] = {

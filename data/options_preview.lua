@@ -68,11 +68,11 @@ function SQP:CreatePreviewSection(parent)
             realPlate = wrapper.NamePlate
             useReal = true
             wrapper:ClearAllPoints()
-            -- Compact for the 84px banner: down from the template's native
-            -- 195px so dead space above the plate shrinks and the plate clears
-            -- the Kill/Loot/% row below. Preview stays legible.
-            wrapper:SetSize(380, 76)
-            wrapper:SetPoint("TOP", previewFrame, "TOP", 0, -2)
+            -- Fit the wrapper inside the preview body, above the reserved
+            -- button strip. Its centered NamePlate rises with the shorter
+            -- wrapper; this changes real-client placement, not only the mock.
+            wrapper:SetSize(380, 48)
+            wrapper:SetPoint("TOP", previewFrame, "TOP", 0, 0)
             -- The template ships its own options-chrome border and PREVIEW
             -- label (atlas options_frame_child); the quest preview must show
             -- only the nameplate, so drop that extra frame.
@@ -114,7 +114,7 @@ function SQP:CreatePreviewSection(parent)
     nameplate:SetSize(152, 44)
     -- Raised within its frame: the mock plate clears the reserved button
     -- strip while staying inside the banner top edge.
-    nameplate:SetPoint("CENTER", previewFrame, "CENTER", 0, 8)
+    nameplate:SetPoint("CENTER", previewFrame, "CENTER", 0, 18)
 
     -- Nameplate background (Blizzard nameplate navy)
     local nameplateBackground = nameplate:CreateTexture(nil, "BACKGROUND")
@@ -320,6 +320,7 @@ function SQP:CreatePreviewSection(parent)
     -- never maintain its own sizing logic.
     questFrame.levelChip = questChip
     questFrame.iconText = iconText
+    questFrame.iconTextOutline = iconTextOutline
     questFrame.icon = icon
     questFrame.killIcon = killIcon
     questFrame.lootIcon = lootIcon
@@ -502,6 +503,7 @@ function SQP:CreatePreviewSection(parent)
         -- Keep the preview nameplate visible; the addon switch controls only
         -- SQP's quest overlay, just as it does on live nameplates.
         questFrame:SetShown(SQPSettings.enabled ~= false)
+        questFrame._displayType = self.questType or "kill"
 
         if useReal then
             -- The preview plate is a real client nameplate registered with the
@@ -619,6 +621,7 @@ function SQP:CreatePreviewSection(parent)
         if SQP:IsUnifiedMode(refPlate) then referenceParent = refPlate.UnitFrame end
         local referenceParentScale = GetFrameDimension(referenceParent, "GetEffectiveScale", referenceScale)
         if referenceParentScale <= 0 then referenceParentScale = referenceScale end
+        questFrame._displayType = self.questType or "kill"
         SQP:ApplyQuestLayout(questFrame, anchorAnalog, referenceParentScale / referenceScale)
         end -- mock geometry
 
@@ -632,7 +635,7 @@ function SQP:CreatePreviewSection(parent)
                 local modeKey = self.questType or "kill"
                 local styleText
                 if SQP:UsesLevelChip(modeKey) then
-                    styleText = "Forever"
+                    styleText = SQP:UsesTextMode(modeKey) and "Forever + Text" or "Forever"
                 else
                     local value = SQPSettings[modeKey .. "ShowIconBackground"]
                     if value == nil then value = SQPSettings.showIconBackground end
@@ -682,7 +685,7 @@ function SQP:CreatePreviewSection(parent)
         end
 
         local function IsPreviewIconStyleEnabled(typeKey)
-            return SQP:GetDisplayStyle(typeKey) ~= "text"
+            return not SQP:UsesTextMode(typeKey)
         end
 
         -- Update quest type display
@@ -863,6 +866,9 @@ function SQP:CreatePreviewSection(parent)
         end
         -- Generic layout/animation refresh: settings converged, no trigger.
         SQP:UpdateQuestToast(questFrame, false)
+        local typeEnabled = SQPSettings.enabled ~= false and SQPSettings[previewTypeKey .. "Enabled"] ~= false
+        SQP:UpdateTextPulses(questFrame, previewTypeKey, typeEnabled)
+        questFrame:SetShown(typeEnabled)
     end
 
     -- Restart animation when the panel becomes visible again
@@ -927,28 +933,8 @@ function SQP:CreatePreviewSection(parent)
     lootTypeBtn:SetScript("OnClick", function() SelectType(3, previewFrame.activateLootMode) end)
     pctTypeBtn:SetScript("OnClick", function() SelectType(4, previewFrame.activatePercentMode) end)
 
-    -- Hover previews: mousing over a type button shows that quest type in
-    -- the preview without committing to it; leaving restores the committed
-    -- selection. Click still navigates to that page's settings.
-    local committedType
-    local function HoverType(activate)
-        if not committedType then
-            committedType = previewFrame.questType or "kill"
-        end
-        activate()
-    end
-    local function RestoreCommitted()
-        if not committedType then return end
-        local restore = committedType
-        committedType = nil
-        if restore == "kill" then
-            previewFrame.activateKillMode()
-        elseif restore == "loot" then
-            previewFrame.activateLootMode()
-        elseif restore == "percent" then
-            previewFrame.activatePercentMode()
-        end
-    end
+    -- Hover selects the preview type persistently. Only a different type
+    -- activation changes it; leaving a button restores its skin, not the type.
     for _, pair in ipairs({
         { killTypeBtn, previewFrame.activateKillMode },
         { lootTypeBtn, previewFrame.activateLootMode },
@@ -957,18 +943,15 @@ function SQP:CreatePreviewSection(parent)
         local button, activate = pair[1], pair[2]
         -- HookScript so the framework button hover highlight keeps working;
         -- SetScript would have replaced it and killed the highlight.
-        button:HookScript("OnEnter", function() HoverType(activate) end)
-        button:HookScript("OnLeave", RestoreCommitted)
+        button:HookScript("OnEnter", function()
+            local pager = SQP.optionControls and SQP.optionControls.generalPager
+            local page = pager and pager.page
+            local frame = page and pager.frames and pager.frames[page]
+            -- Hidden Global subpages do not pin previews on other tabs.
+            if page and page > 1 and frame and frame:IsVisible() then return end
+            activate()
+        end)
     end
-    -- A committed click pins the new type so leaving cannot snap it back.
-    local function Commit(page, activate)
-        committedType = nil
-        SelectType(page, activate)
-        committedType = previewFrame.questType or "kill"
-    end
-    killTypeBtn:SetScript("OnClick", function() Commit(2, previewFrame.activateKillMode) end)
-    lootTypeBtn:SetScript("OnClick", function() Commit(3, previewFrame.activateLootMode) end)
-    pctTypeBtn:SetScript("OnClick", function() Commit(4, previewFrame.activatePercentMode) end)
 
     -- Initial update
     previewFrame:UpdatePreview()

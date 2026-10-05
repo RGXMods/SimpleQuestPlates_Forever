@@ -1,3 +1,4 @@
+// Stray editor text preserved: with the g5
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {dirname,join,resolve} from 'node:path';
@@ -14,9 +15,12 @@ const core=readFileSync(`${root}/core.lua`,'utf8');
 lua.ctx.baselines=core.slice(core.indexOf('function SQP:GetSettingBaseline'),core.indexOf('-- Declare defaults'));
 lua.ctx.defaults=core.slice(core.indexOf('SQP.DEFAULTS = {'),core.indexOf('SQP.defaultMinimapAngle'));
 lua.ctx.settingSetter=core.slice(core.indexOf('function SQP:SetSetting'),core.indexOf('-- Reset settings to default'));
+lua.ctx.animationGate=core.slice(core.indexOf('function SQP:IsAnimationEnabled'),core.indexOf('function SQP:GetAnimationIntensity'));
 for(const name of ['options_general','options_preview','options_widgets','options_kill','options_loot','options_percent','nameplates','quest','events'])lua.ctx[name]=readFileSync(`${root}/${name}.lua`,'utf8');
 lua.ctx.layout=readFileSync(join(framework,'modules/ui/layout.lua'),'utf8');
 let failed=0;
+const controls=readFileSync(join(framework,'modules/ui/controls.lua'),'utf8');
+lua.ctx.switchFactory=controls.slice(controls.indexOf('function UI:CreateSwitch')).split(/--\[\[=+\s+COLUMNS/)[0];
 try{
 lua.doStringSync(`
   UI={}
@@ -32,6 +36,9 @@ lua.doStringSync(`
     return w
   end
   function methods:SetSize(w,h)self.w=w self.h=h end
+  function methods:RegisterForClicks()end
+  function methods:Play()self.playing=true end
+  function methods:Stop()self.playing=false end
   function methods:SetWidth(w)self.w=w end
   function methods:SetHeight(h)self.h=h end
   function methods:GetWidth()return self.w end
@@ -64,6 +71,7 @@ lua.doStringSync(`
   function methods:SetText(t)self.text=t end
   function methods:GetText()return self.text end
   function methods:IsShown()return self.shown end
+  function methods:IsVisible()return self.shown and (not self.parent or self.parent:IsVisible())end
    function methods:Show()
      local changed=not self.shown self.shown=true
      if changed and self.scripts.OnShow then self.scripts.OnShow(self)end
@@ -81,8 +89,15 @@ lua.doStringSync(`
   function methods:CreateFontString()return widget(self)end
   function methods:CreateAnimationGroup()return widget(self)end
   function methods:CreateAnimation()return widget(self)end
-  function methods:IsPlaying()return false end
+   function methods:IsPlaying()return self.playing==true end
   function methods:GetParent()return self.parent end
+  function methods:SetParent(parent)
+    if self.parent then
+      for i,child in ipairs(self.parent.children)do if child==self then table.remove(self.parent.children,i)break end end
+    end
+    self.parent=parent
+    if parent then parent.children[#parent.children+1]=self end
+  end
   function methods:GetFrameLevel()return self.frameLevel or 5 end
   function methods:SetFrameLevel(v)self.frameLevel=v end
   function methods:GetMinMaxValues()return self.min or 0,self.max or 100 end
@@ -99,6 +114,9 @@ lua.doStringSync(`
   -- Widget factories guard on _G.RGXUI; pages/tests sequence captures need
   -- the same baseline as the real client (framework loads before consumers).
   RGXUI=UI
+  function UI:CreateLabel(parent,opts)local label=widget(parent)label:SetText(opts.text)return label end
+  function UI:CreateButton(parent,text,width,height)local b=widget(parent)b:SetSize(width,height)b:SetText(text)return b end
+  assert(loadstring('local UI,RGX=...; local ApplyDefaultFont=function()end; '..switchFactory))(UI,RGXFramework)
   RGXFonts={Apply=function()end,GetDefault=function()return 'font' end,
     ResolveName=function(self,name,default)return name or default end,
     GetPath=function()return 'Fonts\\FRIZQT__.TTF' end,
@@ -126,9 +144,14 @@ lua.doStringSync(`
     return card
   end
   function SQP:CreateStyledCheckbox(parent)local w=widget(parent)w.checkbox=widget(w)w.label=widget(w)return w end
-  function SQP:CreateStyledButton(parent,text,w,h)local b=widget(parent)b:SetSize(w,h)b:SetText(text)return b end
+   function SQP:CreateStyledButton(parent,text,w,h)
+     local b=widget(parent)b:SetSize(w,h)b:SetText(text)
+     b:SetScript('OnEnter',function()b.skinHovered=true end)
+     b:SetScript('OnLeave',function()b.skinHovered=false end)
+     return b
+   end
   function SQP:CreateStyledSlider(parent,opts)
-    local s=widget(parent)s.h=38 s.opts=opts s.valueLabel=widget(s)
+     local s=widget(parent)s.h=38 s.opts=opts s.valueLabel=widget(s) s.resetButton=widget(s)
     s.SetValue=function(a,b)local v=b or a assert(type(v)=='number','reset slider baseline must be numeric')SQPSettings[opts.key]=v end
     return s
   end
@@ -140,11 +163,121 @@ lua.doStringSync(`
   host=widget(nil)
 `);
 for(const [name,body]of [
- ['Forever changes background without inheriting Text ratios',`
+ ['task-icon reset baselines match saved Classic values and tuned right offsets',`
+    SQPSettings.anchor='LEFT'
+    assert(SQP:GetSettingBaseline('killIconOffsetX')==-3)
+    assert(SQP:GetSettingBaseline('lootIconOffsetX')==-44)
+    assert(SQP:GetSettingBaseline('killIconOffsetY')==16 and SQP:GetSettingBaseline('lootIconOffsetY')==16)
+    SQPSettings.anchor='RIGHT'
+    SQPSettings.killLevelChip=false
+    assert(SQP:GetSettingBaseline('killIconOffsetX')==1 and SQP:GetSettingBaseline('lootIconOffsetX')==3)
+    SQPSettings.killLevelChip=true assert(SQP:GetSettingBaseline('killIconOffsetX')==0)
+    SQPSettings.killLevelChip=nil
+ `],
+ ['Animation master restores the previous Toast state without reverse dependency',`
+    SQPSettings.animationsEnabled=true SQPSettings.showQuestMarker=true
+    local master=SQP:CreateHeaderSwitch(CreateFrame('Frame'),'animationsEnabled')
+    local toast=SQP:CreateHeaderSwitch(CreateFrame('Frame'),'showQuestMarker')
+    master.scripts.OnClick(master)
+    assert(SQPSettings.animationsEnabled==false and SQPSettings.showQuestMarker==false)
+    master.scripts.OnClick(master)
+    assert(SQPSettings.animationsEnabled==true and SQPSettings.showQuestMarker==true,'master did not restore previous Toast ON')
+    master.scripts.OnClick(master)
+    local resumed=SQP:CreateHeaderSwitch(CreateFrame('Frame'),'animationsEnabled')
+    resumed.scripts.OnClick(resumed)
+    assert(SQPSettings.showQuestMarker==true and SQPSettings.toastBeforeAnimationDisable==nil,'rebuilt switch lost Toast restoration state')
+    toast.scripts.OnClick(toast)
+    assert(SQPSettings.animationsEnabled==true,'toast OFF disabled master')
+    master.scripts.OnClick(master) master.scripts.OnClick(master)
+    assert(SQPSettings.showQuestMarker==false,'previous Toast OFF was not preserved')
+    assert(SQP.DEFAULTS.percentAnimationsEnabled==false)
+    SQPSettings.showQuestMarker=true
+ `],
+ ['card switches center on the inset header band rather than the outer frame',`
+    local card=CreateFrame('Frame') card:SetHeight(240)
+    card.headerBand=CreateFrame('Frame',nil,card) card.headerBand:SetHeight(32)
+    card.headerBand:SetPoint('TOPRIGHT',card,'TOPRIGHT',-10,-8)
+    local switch=SQP:CreateHeaderSwitch(card,'killAnimationsEnabled')
+    assert(switch.point[1]=='RIGHT' and switch.point[2]==card.headerBand and switch.point[3]=='RIGHT')
+    assert(switch.point[4]==-8 and switch.point[5]==0,'switch is not centered in header')
+    local saved=SQPSettings.showPercentIcon SQPSettings.showPercentIcon=nil
+    local percent=SQP:CreateHeaderSwitch(card,'showPercentIcon')
+    assert(percent.checkbox:GetChecked()==false,'Percent header switch changed its off default')
+    SQPSettings.showPercentIcon=saved
+ `],
+ ['type navigation updates header titles and restores independent module switches',`
+    local original=RGXDesign.CreateSectionHeader
+    local header
+    RGXDesign.CreateSectionHeader=function(self,parent,text)
+        header=CreateFrame('Frame',nil,parent) header:SetHeight(32)
+        header.label=header:CreateFontString() header.label:SetText(text) return header
+    end
+    SQP:CreateGlobalOptions(CreateFrame('Frame'))
+    local sides=SQP.optionControls.anchorButtons
+    local group=sides.left:GetParent()
+    assert(sides.left:GetText()=='Left Side' and sides.right:GetText()=='Right Side','Global side labels incorrect')
+    assert(group:GetParent():GetParent().content and group.point[1]=='TOP' and group.point[4]==0,'Global sides not centered in body')
+    local task=SQP.optionControls.showQuestTypeIcons:GetParent()
+    local text=SQP.optionControls.showIconBackgroundTextOnly:GetParent()
+    local row=task:GetParent():GetParent()
+    assert(row==text:GetParent():GetParent() and row:GetParent()==group:GetParent(),'Global display toggles separated')
+    assert(task:GetParent()~=text:GetParent(),'Global display toggles must use separate columns')
+    assert(row.point[5]>group.point[5],'Global toggles must be above side row')
+    assert(SQP.optionControls.scale.point[5]<group.point[5],'Scale must follow side row')
+    SQPSettings.anchor='RIGHT' SQPSettings.offsetX=0
+    sides.right.scripts.OnClick()
+    assert(SQPSettings.offsetX==23 and SQP:GetSettingBaseline('offsetX')==23,'Right X baseline must be +23')
+    SQPSettings.offsetX=41 SQP.optionControls.offsetX.resetButton.scripts.OnClick()
+    assert(SQPSettings.offsetX==23,'Right reset did not restore +23')
+    sides.left.scripts.OnClick() assert(SQPSettings.offsetX==0,'Left baseline not restored')
+    SQPSettings.offsetX=7 sides.right.scripts.OnClick()
+    assert(SQPSettings.offsetX==7,'switching sides overwrote custom X')
+    SQPSettings.offsetX=23 sides.left.scripts.OnClick()
+    local pager=SQP.optionControls.generalPager
+    for i,title in ipairs({'Global','Kill','Loot','Percent'})do
+        pager:SetPage(i) assert(header.label:GetText()==title,'stale page title')
+        local shown=0
+        for _,child in ipairs(header.children)do if child.switchFrame and child:IsShown()then shown=shown+1 end end
+        assert(shown==(i==1 and 0 or 1),'wrong module switch visibility')
+    end
+    SQP.optionControls.killEnabled:SetChecked(false)
+    assert(SQPSettings.killEnabled==false and SQPSettings.lootEnabled~=false)
+    SQP.optionControls.killEnabled:SetChecked(true)
+    RGXDesign.CreateSectionHeader=original
+ `],
+ ['animation gates preserve options and stop visible Text Mode pulses',`
+    local previous=SQP.IsAnimationEnabled
+    SQP.IsAnimationCombatAllowed=function()return true end
+    assert(loadstring(animationGate))()
+    SQPSettings.useGlobalAnimationSettings=false SQPSettings.animateMainIcons=true
+    SQPSettings.showIconBackground=false
+    local q={iconText=CreateFrame('Frame'),iconTextOutline=CreateFrame('Frame')}
+    SQP:UpdateTextPulses(q,'kill',true)
+    assert(q.iconTextPulse:IsPlaying() and q.iconTextOutlinePulse:IsPlaying())
+    SQPSettings.killAnimationsEnabled=false
+    SQP:UpdateTextPulses(q,'kill',true)
+    assert(not q.iconTextPulse:IsPlaying() and not SQP:IsAnimationEnabled('kill',true))
+    assert(SQPSettings.animateMainIcons==true,'gate erased saved option')
+    SQPSettings.killAnimationsEnabled=true SQPSettings.animationsEnabled=false
+    assert(not SQP:IsAnimationEnabled('loot',false))
+    SQPSettings.animationsEnabled=true SQPSettings.animateMainIcons=false SQPSettings.showIconBackground=true
+    SQP.IsAnimationEnabled=previous
+ `],
+ ['Text Mode adds minus-three baseline without changing saved offset and right side moves badges',`
+    local q=CreateFrame('Frame') q.icon=CreateFrame('Frame') q.killIcon=CreateFrame('Frame') q.lootIcon=CreateFrame('Frame')
+    SQPSettings.offsetX=7 SQPSettings.showIconBackground=false SQPSettings.anchor='LEFT'
+    SQP:ApplyQuestLayout(q,host)
+    assert(q.icon.point[4]==4 and SQPSettings.offsetX==7)
+    assert(q.killIcon.point[1]=='TOPLEFT' and q.killIcon.point[3]=='BOTTOMRIGHT')
+    SQPSettings.showIconBackground=true SQP:ApplyQuestLayout(q,host)
+    assert(q.icon.point[4]==7)
+    SQPSettings.offsetX=0 SQPSettings.anchor='RIGHT'
+ `],
+ ['Forever retains its chip while Text Mode renders ratios',`
     NamePlatePreviewMixin=nil NamePlateDriverFrame=nil
     SQPSettings.killLevelChip=true SQPSettings.killShowIconBackground=false
     local p=SQP:CreatePreviewSection(host) p.questType='kill' p:UpdatePreview()
-    assert(p.questChip:IsShown() and p.iconText:GetText()=='5','Forever incorrectly rendered Text ratio '..tostring(p.iconText:GetText()))
+     assert(p.questChip:IsShown() and p.iconText:GetText()=='5/8','Forever + Text must retain chip and ratio, got '..tostring(p.iconText:GetText()))
     SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil
  `],
  ['clearing per-type style restores global inheritance rather than forcing Text',`
@@ -192,7 +325,11 @@ for(const [name,body]of [
     overlay:Show()
     SQP:UpdateQuestIcon(plate,'nameplate1')
     assert(progressCalls==1,'unmarked unit did not reach quest evaluation')
-    assert(overlay:IsShown() and tostring(overlay.iconText:GetText())=='3','unmarked quest unit did not render')
+     assert(overlay:IsShown() and tostring(overlay.iconText:GetText())=='3','unmarked quest unit did not render')
+     SQPSettings.killEnabled=false SQP:UpdateQuestIcon(plate,'nameplate1')
+     assert(not overlay:IsShown(),'disabled Kill module remained visible')
+     SQPSettings.killEnabled=true SQP:UpdateQuestIcon(plate,'nameplate1')
+     assert(overlay:IsShown(),'reenabling Kill failed to restore overlay')
     assert(loadstring(quest))('SQP',SQP)
     SQPSettings.enabled=wasEnabled
     GetRaidTargetIndex=nil UnitExists=nil SQP.QuestPlates={} SQP.ActiveNameplates={}
@@ -265,7 +402,11 @@ for(const [name,body]of [
   ['control defaults use canonical baselines',`assert(loadstring(options_widgets))('SQP',SQP) RGXUI=UI UI.CreateSlider=function(_,_,opts)return opts end local s=SQP:CreateStyledSlider(host,{key='killIconSize',default=999}) assert(s.default==12,'slider default drift') local f=SQP:CreateStyledSlider(host,{key='percentFontSize',default=8}) assert(f.default==17,'percent default ignores General font') assert(SQP.DEFAULTS.percentIconSize==12,'percent sign default does not match the kill slider')`],
   ['display style is a two-way dropdown with a text-only tick box',`SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil RGXUI=UI UI.CreateCheckbox=mockCheckbox RGXDropdowns={CreateNestedDropdown=function(_,parent,opts)
     local dd={parent=parent,opts=opts}
-    function dd:SetPoint() end function dd:SetValue(v) self.selected=v end
+    function dd:SetPoint(point,relative,relativePoint,x,y)
+      if type(relative)=='number'then self.point={point,self.parent,point,relative,relativePoint}
+      else self.point={point,relative,relativePoint,x,y}end
+    end
+    function dd:SetValue(v) self.selected=v end
     function dd:GetValue() return self.selected or (self.opts and self.opts.value) end
     SQP.optionControls[opts.label=='Style' and 'killShowIconBackgroundStyleDropdown' or 'unused']=dd
     return dd
@@ -279,20 +420,20 @@ for(const [name,body]of [
     assert(box,'text-only tick box missing')
     assert(box:GetChecked()==false,'fresh kill page must not start in text mode')
     box:SetChecked(true); box.scripts.OnClick(box)
-    assert(SQPSettings.killShowIconBackground==false and SQPSettings.killLevelChip==false,'ticking text-only must clear the chip')
+     assert(SQPSettings.killShowIconBackground==false and SQPSettings.killLevelChip==nil,'text toggle must preserve background inheritance')
     assert(SQP:GetDisplayStyle('kill')=='text','text-only tick did not take effect')
     assert(box:GetChecked()==true,'tick box lost its checked state')
     box:SetChecked(false); box.scripts.OnClick(box)
     assert(SQPSettings.killShowIconBackground==nil and SQPSettings.killLevelChip==nil,'unticking must return to inheritance')
     assert(SQP:GetDisplayStyle('kill')=='icon','unticking did not restore the inherited style')
     dd.opts.onChange('chip')
-    assert(SQPSettings.killLevelChip==true and SQPSettings.killShowIconBackground==true,'chip mode writes the per-type chip override')
+     assert(SQPSettings.killLevelChip==true and SQPSettings.killShowIconBackground==nil,'background selection must preserve text-format inheritance')
     assert(box:GetChecked()==false,'chip selection left text-only ticked')
     box:SetChecked(true); box.scripts.OnClick(box)
-    assert(SQPSettings.killShowIconBackground==false and SQPSettings.killLevelChip==false,'ticking text-only must clear the chip')
+     assert(SQPSettings.killShowIconBackground==false and SQPSettings.killLevelChip==true,'Text Mode must retain selected Forever frame')
     dd.opts.onChange('icon')
-    assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==true,'icon mode restores the icon toggle and clears text')
-    assert(box:GetChecked()==false,'icon selection left text-only ticked')
+     assert(SQPSettings.killLevelChip==false and SQPSettings.killShowIconBackground==false,'background selection must not clear Text Mode')
+     assert(box:GetChecked()==true,'background selection cleared Text Mode')
     SQPSettings.killLevelChip=nil SQPSettings.killShowIconBackground=nil`],
  ['individual layout resets restore canonical offsets and displayed values',`
     RGXUI=UI RGXDesign=RGXFramework:GetDesign()
@@ -316,6 +457,26 @@ for(const [name,body]of [
       end
     end
  `],
+  ['right-side task reset buttons restore tuned offsets then left restores zero',`
+    local function find(frame,text)
+      if frame.text==text then return frame end
+      for _,child in ipairs(frame.children)do local found=find(child,text)if found then return found end end
+    end
+    for _,key in ipairs({'kill','loot'})do
+      local title=key:sub(1,1):upper()..key:sub(2)
+      SQPSettings.anchor='LEFT'
+      local page=CreateFrame('Frame') SQP['Create'..title..'Options'](SQP,page)
+      local slider=SQP.optionControls[key..'IconOffsetX']
+      SQPSettings[key..'IconOffsetX']=61
+      slider.resetButton.scripts.OnClick()
+      assert(SQPSettings[key..'IconOffsetX']==(key=='kill' and -3 or -44))
+      find(page,'Reset '..title..' Settings').scripts.OnClick()
+      assert(SQPSettings[key..'IconOffsetX']==(key=='kill' and -3 or -44))
+      SQPSettings.anchor='RIGHT'
+      slider.resetButton.scripts.OnClick()
+      assert(SQPSettings[key..'IconOffsetX']==(key=='kill' and 1 or 3),'left Classic reset incorrect')
+    end
+  `],
   ['style cycles restore preview state for Classic Text and Forever',`
     SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
     SQPSettings.showPercentIcon=true SQP.ActiveNameplates={} SQP.QuestPlates={}
@@ -333,7 +494,7 @@ for(const [name,body]of [
       dd.opts.onChange('chip')
       assert(not p.icon:IsShown() and p.questChip:IsShown(),'Forever was not restored for '..key)
       box:SetChecked(true); box.scripts.OnClick(box)
-      assert(not p.icon:IsShown() and not p.questChip:IsShown(),'ticked Text over Forever kept the chip for '..key)
+       assert(not p.icon:IsShown() and p.questChip:IsShown(),'Forever + Text lost the chip for '..key)
       box:SetChecked(false); box.scripts.OnClick(box)
       dd.opts.onChange('icon')
       assert(p.icon:IsShown() and p.iconText:GetText()~='','Classic text/icon missing after cycle for '..key)
@@ -372,29 +533,48 @@ for(const [name,body]of [
     master:SetChecked(true); master.scripts.OnClick(master)
     assert(SQPSettings.showKillIcon==true and SQPSettings.showLootIcon==true and SQPSettings.showPercentIcon==true,'master-on did not restore all three')
   `],
-  ['side controls share the Show Icon row on all three pages',`
+  ['type Task Icon cards keep side buttons in the body below header switches',`
     for _,key in ipairs({'kill','loot','percent'})do
       local sideKey=key=='percent' and 'percentSignSide' or key..'IconSide'
       local title=key:sub(1,1):upper()..key:sub(2)
       SQP['Create'..title..'Options'](SQP,CreateFrame('Frame'))
       local buttons=SQP.optionControls[sideKey..'Buttons']
       local group=buttons.left:GetParent()
-      assert(group:GetParent()==SQP.optionControls['show'..title..'Icon']:GetParent():GetParent(),'side controls are on another card')
-      assert(group.point[1]=='TOPRIGHT' and group.anchorCount==1,'inline group retains its old center anchor')
+      local card=group:GetParent():GetParent()
+      local switch
+      local iconKey='show'..title..'Icon'
+      for _,child in ipairs(card.children)do if child.checkbox==SQP.optionControls[iconKey] then switch=child end end
+      assert(switch and switch.point[1]=='RIGHT' and switch.point[4]==-8,'icon switch not at far-right header')
+      assert(group:GetParent()==card.content and group.point[1]=='TOP' and group.point[4]==0,'side controls must stay centered in the body')
+      local tint=SQP.optionControls[key..'TintIconColorSwatch']:GetParent()
+      assert(tint.point[5]>group.point[5],'task tint selector must be above side buttons')
+      local size=SQP.optionControls[key..'IconSize']
+      assert(size.point[5]<=group.point[5]-group:GetHeight(),'side buttons overlap Size slider')
+      SQPSettings[iconKey]=true switch.scripts.OnClick(switch)
+      assert(SQPSettings[iconKey]==false,'header switch did not save')
+      switch.scripts.OnClick(switch)
+      assert(group.anchorCount==1,'side group retains competing anchor')
+      assert(buttons.left:GetWidth()==68 and buttons.right:GetWidth()==68,'header buttons must fit Side labels')
       buttons.left.scripts.OnClick(); assert(SQPSettings[sideKey]=='left')
       buttons.right.scripts.OnClick(); assert(SQPSettings[sideKey]=='right')
     end
  `],
-  ['animation card leads the right column on type pages',`
+   ['type pages separate main display controls from task icon controls',`
     local savedCreateCard=SQP.CreateCard
     for _,key in ipairs({'kill','loot','percent'})do
       local title=key:sub(1,1):upper()..key:sub(2)
       local seen={}
+      local oldColumns=SQP.CreateOptionColumns
+      local left,right
+      SQP.CreateOptionColumns=function(self,parent)
+        left,right=oldColumns(self,parent) return left,right
+      end
       -- Builders call SQP:CreateCard with colon syntax (self first); record
       -- each card shell with its title and host column for layout asserts.
       SQP.CreateCard=function(self,parent,cardTitle,opts)
         local card=CreateFrame('Frame',nil,parent)
         card.mockTitle=cardTitle
+        card.above=opts and opts.above
         card.content=CreateFrame('Frame',nil,card)
         function card:FitContent() end
         seen[#seen+1]=card
@@ -402,10 +582,28 @@ for(const [name,body]of [
       end
       SQP['Create'..title..'Options'](SQP,CreateFrame('Frame'))
       SQP.CreateCard=savedCreateCard
+      SQP.CreateOptionColumns=oldColumns
       local byTitle={} for _,c in ipairs(seen)do byTitle[c.mockTitle]=c end
-      assert(byTitle[title..' Display'] and byTitle[title..' Animation'] and byTitle[title..' Color'],'type page cards missing for '..key)
-      assert(byTitle[title..' Animation']:GetParent()==byTitle[title..' Color']:GetParent(),'animation/color not sharing the right column for '..key)
-      assert(byTitle[title..' Display']:GetParent()~=byTitle[title..' Animation']:GetParent(),'display not separated on its own column for '..key)
+      local main=byTitle[title..' Main Icon'] local task=byTitle[title..' Task Icon']
+      assert(main and task and byTitle[title..' Animation'],'type page cards missing for '..key)
+      assert(byTitle[title..' Animation']:GetParent()==left and main:GetParent()==left,'main/animation not in left column')
+      assert(not main.above and byTitle[title..' Animation'].above==main,'Main Icon must lead Animation')
+      assert(task:GetParent()==right,'task not in right column')
+      assert(SQP.optionControls[key..'ShowIconBackgroundTextOnly']:GetParent():GetParent()==main.content,'Text Mode not in Main Icon')
+      assert(SQP.optionControls[key..'ShowIconBackgroundTextOnly']:GetParent().point[5]==-8,'Text Mode must be body row one')
+      local background=SQP.optionControls[key..'ShowIconBackgroundStyleDropdown']
+      local color=SQP.optionControls[key..'ColorSwatch']:GetParent()
+      assert(background.point[5]<color.point[5],'Background Style must be below Count Color')
+      assert(SQP.optionControls[key..'IconSize']:GetParent()==task.content,'task size not in Task Icon')
+      assert(SQP.optionControls[key..'TintIcon']:GetParent():GetParent()==task.content,'task tint not in Task Icon')
+      if key=='percent' then
+        local previous=SQPSettings.showPercentIcon
+        SQPSettings.showPercentIcon=false
+        local text=SQP.optionControls.percentShowIconBackgroundTextOnly
+        text:SetChecked(true); text.scripts.OnClick(text)
+        assert(SQPSettings.showPercentIcon==true and SQP.optionControls.showPercentIcon:GetChecked(),'Percent Text Mode did not enable its task icon')
+        SQPSettings.showPercentIcon=previous
+      end
     end
   `],
   ['global intensity cascade never flips the preview mode',`
@@ -499,26 +697,126 @@ for(const [name,body]of [
     assert(overlay and overlay:GetParent()==p.plate.UnitFrame,'unified rebuild did not reparent to the UnitFrame')
     SQPSettings.unifiedNameplates=false
   `],
- ['type buttons hover-preview and click-commit',`
-    SQPSettings.unifiedNameplates=false SQP.ActiveNameplates={}
-    SQP:CreatePreviewSection(host)
-    local buttons={}
-    local function collect(frame)
-      if not frame.children then return end
-      for _,child in ipairs(frame.children)do
-        if child.scripts and child.scripts.OnEnter and child.scripts.OnLeave and child.scripts.OnClick
-          and (child.text=='Kill' or child.text=='Loot' or child.text=='%') then
-          buttons[#buttons+1]=child
+ ['type-button hover persists after mouse leaves and click navigates',`
+     SQPSettings.unifiedNameplates=false SQP.ActiveNameplates={}
+     NamePlatePreviewMixin=nil NamePlateDriverFrame=nil
+     local createButton=SQP.CreateStyledButton
+     SQP.CreateStyledButton=function(self,...)
+       local b=createButton(self,...)
+       b:SetScript('OnEnter',function()b.skinHovered=true end)
+       b:SetScript('OnLeave',function()b.skinHovered=false end)
+       return b
+     end
+     local p=SQP:CreatePreviewSection(CreateFrame('Frame'))
+     SQP.CreateStyledButton=createButton
+     local buttons={}
+     for _,child in ipairs(p.children)do
+       if child.text=='Kill' or child.text=='Loot' or child.text=='%' then buttons[child.text]=child end
+     end
+     local page,selectedTab
+     SQP.optionsPanel={SelectTabByName=function(_,name)selectedTab=name end,ClearTabHighlight=function()end}
+     SQP.optionControls.generalPager={SetPage=function(_,n)page=n end}
+     p.activateKillMode()
+     for _,test in ipairs({{'Loot','loot',3},{'%','percent',4},{'Kill','kill',2}})do
+       local button=assert(buttons[test[1]])
+       button.scripts.OnEnter(button)
+       assert(p.questType==test[2] and button.skinHovered,'hover must show type and preserve skin')
+       button.scripts.OnLeave(button)
+       assert(p.questType==test[2],'mouse leave reverted '..test[2]..' preview to '..tostring(p.questType))
+       assert(not button.skinHovered,'leaving must still restore button skin')
+       button.scripts.OnClick(button)
+       assert(page==test[3] and selectedTab=='Global','click failed to navigate to type settings')
+     end
+      local pageHost=CreateFrame('Frame')
+      local pager={page=2,frames={}}
+      for i=2,4 do pager.frames[i]=CreateFrame('Frame',nil,pageHost) end
+      SQP.optionControls.generalPager=pager
+      for _,test in ipairs({{2,'kill',p.activateKillMode},{3,'loot',p.activateLootMode},{4,'percent',p.activatePercentMode}})do
+        pager.page=test[1] test[3]()
+        for _,button in pairs(buttons)do
+          button.scripts.OnEnter(button)
+          assert(p.questType==test[2],'hover changed pinned settings-page preview')
+          assert(button.skinHovered,'pinned preview removed button hover skin')
+          button.scripts.OnLeave(button)
         end
-        collect(child)
       end
-    end
-    collect(host)
-    -- Earlier scenarios also build preview sections on the shared host, so
-    -- one trio accumulates per CreatePreviewSection call; every trio must
-    -- carry the hover + click scripts.
-    assert(#buttons>=3 and #buttons%3==0,'expected complete kill/loot/percent trios with hover+click scripts, got '..#buttons)
+      pageHost:Hide() buttons.Loot.scripts.OnEnter(buttons.Loot)
+      assert(p.questType=='loot','hidden type page blocked Animation hover')
+      pageHost:Show() pager.page=1 buttons.Kill.scripts.OnEnter(buttons.Kill)
+      assert(p.questType=='kill','Global hover was blocked')
+      SQP.optionsPanel=nil SQP.optionControls.generalPager=nil
   `],
+  ['Global background and Text Mode controls combine in either order',`
+    RGXUI=UI
+    SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
+    for _,key in ipairs({'kill','loot','percent'})do
+      SQPSettings[key..'LevelChip']=nil SQPSettings[key..'ShowIconBackground']=nil
+    end
+    SQP.ActiveNameplates={} SQP.QuestPlates={}
+    local p=SQP:CreatePreviewSection(CreateFrame('Frame')) SQP.previewFrame=p p.questType='kill'
+    SQP:CreateGlobalOptions(CreateFrame('Frame'))
+    local dd=SQP.optionControls.unifiedDropdown
+    local box=SQP.optionControls.showIconBackgroundTextOnly
+    dd.opts.onChange('chip')
+    box:SetChecked(true);box.scripts.OnClick(box)
+    assert(SQPSettings.unifiedNameplates==true and p.questChip:IsShown()
+      and p.iconText:GetText()=='5/8','Text checkbox cleared Forever or failed to format ratio')
+    dd.opts.onChange('icon')
+    assert(box:GetChecked() and not p.questChip:IsShown() and p.iconText:GetText()=='5/8',
+      'Classic background selection cleared text format')
+    dd.opts.onChange('chip')
+    assert(box:GetChecked() and p.questChip:IsShown() and p.iconText:GetText()=='5/8',
+      'Forever selection cleared text format')
+    box:SetChecked(false);box.scripts.OnClick(box)
+    assert(SQPSettings.unifiedNameplates==true and p.questChip:IsShown() and p.iconText:GetText()=='5',
+      'Text off changed Forever background')
+    SQP.previewFrame=nil SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true
+  `],
+ ['toast switch lives in the card header and preview remains in the body',`
+     RGXUI=UI
+     SQP:CreateAnimationOptions(CreateFrame('Frame'))
+      local preview=SQP.optionControls.toastPreviewButton
+      local card=preview:GetParent():GetParent()
+      local toggle
+      for _,child in ipairs(card.children)do if child.switchFrame then toggle=child end end
+      assert(toggle and toggle:GetParent()==card,'toast switch must belong to card header')
+      assert(toggle.point[1]=='RIGHT' and toggle.point[5]==0,'header switch misplaced')
+      assert(preview:GetParent()==card.content and preview.point[5]<=-8,'preview must remain below the header')
+      local size=SQP.optionControls.questMarkerSize
+      assert(preview.point[5]<=size.point[5]-size:GetHeight(),'Preview Toast must sit below Toast Size')
+      SQPSettings.showQuestMarker=true toggle.scripts.OnClick(toggle)
+      assert(SQPSettings.showQuestMarker==false,'header switch did not disable toast')
+      toggle.scripts.OnClick(toggle) assert(SQPSettings.showQuestMarker==true)
+ `],
+ ['live overlays combine Forever frame and Text Mode for kill loot and percent',`
+     local getProgress=SQP.GetQuestProgress
+     local marker=GetRaidTargetIndex
+     GetRaidTargetIndex=function()return nil end
+     SQPSettings.enabled=true SQPSettings.hideInCombat=false SQPSettings.hideInInstance=false
+     SQPSettings.unifiedNameplates=true SQPSettings.showIconBackground=false SQPSettings.showPercentIcon=true
+     for _,key in ipairs({'kill','loot','percent'})do
+       SQPSettings[key..'LevelChip']=nil SQPSettings[key..'ShowIconBackground']=nil
+     end
+     for _,test in ipairs({{'kill','Target slain: 5/8',1,3,0,'5/8'},
+         {'loot','Item collected: 2/5',1,0,3,'2/5'},{'percent','Progress: 75%',3,75,0,'75'}})do
+       SQP.GetQuestProgress=function()return test[2],test[3],test[4],test[5]end
+       local plate=CreateFrame('Frame') SQP:CreateQuestPlate(plate)
+       SQP:UpdateQuestIcon(plate,'nameplate1')
+       local q=SQP.QuestPlates[plate]
+       assert(q.levelChip:IsShown() and tostring(q.iconText:GetText())==test[6],
+         'live Forever+Text lost frame or text for '..test[1])
+     end
+     SQP.GetQuestProgress=getProgress GetRaidTargetIndex=marker
+     SQPSettings.unifiedNameplates=false SQPSettings.showIconBackground=true SQPSettings.showPercentIcon=false
+ `],
+ ['slider purpose stays visible while values are hover-only',`
+     assert(loadstring(options_widgets))('SQP',SQP)
+     local received
+     RGXUI={CreateSlider=function(_,parent,opts)received=opts return CreateFrame('Frame',nil,parent)end}
+     SQP:CreateStyledSlider(host,{key='scale',label='Scale',storage=SQPSettings})
+     assert(received.label=='Scale' and received.noLabel==false and received.valueDisplay=='hover',
+       'slider purpose must remain visible and only its numeric value hover-only')
+ `],
 ]){
   try{lua.doStringSync(body);console.log('PASS '+name);}catch(e){failed++;console.error('FAIL '+name+': '+e.message);}
 }

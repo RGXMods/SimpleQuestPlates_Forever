@@ -10,6 +10,7 @@ local addonName, SQP = ...
 function SQP:CreatePercentOptions(content)
     if not self.optionControls then self.optionControls = {} end
 
+    -- Swap the two card stacks while retaining their internal ordering.
     local leftColumn, rightColumn = SQP:CreateOptionColumns(content)
 
     local function ActivatePercent()
@@ -42,27 +43,20 @@ function SQP:CreatePercentOptions(content)
         return yOff - slider:GetHeight() - 8
     end
 
-    -- LEFT: Percent Display (show + side, display style, size/offsets, reset)
-    local displayCard = SQP:CreateCard(leftColumn, "Percent Display")
+    -- RIGHT: task icon visibility, side, dimensions, tint, and reset.
+    local taskCard = SQP:CreateCard(rightColumn, "Percent Task Icon")
     do
-        local c = displayCard.content
+        local c = taskCard.content
         local yOffset = -8
 
-        local showFrame = self:CreateStyledCheckbox(c, "Show Percent Icon")
-        showFrame:SetPoint("TOPLEFT", 8, yOffset)
-        showFrame.checkbox:SetChecked(SQPSettings.showPercentIcon == true)
-        self.optionControls.showPercentIcon = showFrame.checkbox
-        showFrame.checkbox:SetScript("OnClick", function(self)
-            SQP:SetSetting('showPercentIcon', self:GetChecked())
-            ActivatePercent()
-            SQP:RefreshAllNameplates()
-        end)
-        SQP:SetControlTooltip(showFrame, "Display toggle: show or hide the percent sign on quest nameplates.")
+        local showSwitch = self:CreateHeaderSwitch(taskCard, "showPercentIcon")
+        SQP:SetControlTooltip(showSwitch, "Display toggle: show or hide the percent sign on quest nameplates.")
+        yOffset = self:CreateMiniIconTintSection(c, "percent", ActivatePercent, yOffset)
 
-        self:CreateIconSideSection(c, "percent", ActivatePercent, yOffset)
-        yOffset = yOffset - 22
+        self:CreateIconSideSection(c, "percent", ActivatePercent, yOffset, { center = true })
+        yOffset = yOffset - 24
 
-        yOffset = self:CreateDisplayStyleSection(c, "percent", ActivatePercent, yOffset)
+
 
         yOffset = MakeSlider(c, "Size",     "percentIconSize",    8,   8,  40, yOffset)
         yOffset = MakeSlider(c, "Offset X", "percentIconOffsetX",  0, -80, 80, yOffset)
@@ -74,6 +68,8 @@ function SQP:CreatePercentOptions(content)
         resetBtn:SetScript("OnClick", function()
             local D = SQP.DEFAULTS
             local oc = SQP.optionControls
+            SQP:SetSetting('percentAnimationsEnabled', D.percentAnimationsEnabled)
+            if oc.percentAnimationsEnabled then oc.percentAnimationsEnabled:SetChecked(D.percentAnimationsEnabled) end
             SQP:SetSetting('showPercentIcon', D.showPercentIcon)
             SQP:SetSetting('percentShowIconBackground', D.percentShowIconBackground)
             SQP:SetSetting('percentLevelChip', nil)
@@ -117,17 +113,19 @@ function SQP:CreatePercentOptions(content)
             SQP:RefreshAllNameplates()
             ActivatePercent()
         end)
-        displayCard:FitContent()
+        taskCard:FitContent()
     end
 
-    -- RIGHT: Percent Animation (top of the right column)
-    local animCard = SQP:CreateCard(rightColumn, "Percent Animation")
+    -- LEFT: Main Icon first, then Animation.
+    local mainCard = SQP:CreateCard(leftColumn, "Percent Main Icon")
+    local animCard = SQP:CreateCard(leftColumn, "Percent Animation", { above = mainCard })
+    SQP:CreateHeaderSwitch(animCard, "percentAnimationsEnabled")
     do
         local c = animCard.content
         local yOffset = -8
 
         local animFrame = self:CreateStyledCheckbox(c, "Animate Task Icons")
-        animFrame:SetPoint("TOPLEFT", 8, yOffset)
+        animFrame:SetPoint("TOPLEFT", 8, yOffset - 26)
         animFrame.checkbox:SetChecked(SQPSettings.animateQuestIcons == true)
         self.optionControls.animateQuestIconsPercent = animFrame.checkbox
         animFrame.checkbox:SetScript("OnClick", function(self)
@@ -145,7 +143,7 @@ function SQP:CreatePercentOptions(content)
         yOffset = yOffset - 26
 
         local animMainFrame = self:CreateStyledCheckbox(c, "Animate Main Icon")
-        animMainFrame:SetPoint("TOPLEFT", 8, yOffset)
+        animMainFrame:SetPoint("TOPLEFT", 8, yOffset + 26)
         animMainFrame.checkbox:SetChecked(SQPSettings.percentAnimateMain == true)
         self.optionControls.percentAnimateMain = animMainFrame.checkbox
         animMainFrame.checkbox:SetScript("OnClick", function(self)
@@ -183,11 +181,12 @@ function SQP:CreatePercentOptions(content)
         animCard:FitContent()
     end
 
-    -- RIGHT: Percent Color (under Animation)
-    local colorCard = SQP:CreateCard(rightColumn, "Percent Color", { above = animCard })
+    -- Populate the Main Icon card above Animation.
     do
-        local c = colorCard.content
+        local c = mainCard.content
         local yOffset = -8
+        local textRowY = yOffset
+        yOffset = yOffset - 24
 
         -- Percent Color
         local colorHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -210,7 +209,7 @@ function SQP:CreatePercentOptions(content)
         local colorLbl = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
         SQP:ApplyDefaultFont(colorLbl)
         colorLbl:SetPoint("LEFT", colorBtn, "RIGHT", 6, 0)
-        colorLbl:SetText("Percent Color")
+        colorLbl:SetText("Count Color")
         colorLbl:SetTextColor(_G.RGXDesign:Unpack("text"))
 
         local colorReset = self:CreateInlineResetButton(c, function()
@@ -233,8 +232,8 @@ function SQP:CreatePercentOptions(content)
         end)
         yOffset = yOffset - 28
 
-        -- Percent sign tinting row (reset right-aligned)
-        yOffset = self:CreateMiniIconTintSection(c, "percent", ActivatePercent, yOffset)
-        colorCard:FitContent()
+        -- Background Style ends the Main Icon card.
+        yOffset = self:CreateDisplayStyleSection(c, "percent", ActivatePercent, yOffset, { textRowY = textRowY })
+        mainCard:FitContent()
     end
 end
