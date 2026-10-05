@@ -58,6 +58,10 @@ end
 function SQP:CreateStyledSlider(parent, options)
 	options = options or {}
 	if options.valueDisplay == nil then options.valueDisplay = "hover" end
+	-- SQP drops the static row label; the label rides the track hover tooltip
+	-- ("Scale: 1.1") sharing the hover behavior with the dynamic value.
+	if options.label == nil then options.label = options.key or "Slider" end
+	options.noLabel = true
 	local baseline = options.key and self:GetSettingBaseline(options.key)
 	if baseline ~= nil then options.default = baseline end
 	local UI = _G.RGXUI
@@ -592,13 +596,20 @@ function SQP:CreateCard(host, title, opts)
 end
 
 -- Page header for an options page: framework section skin with the brand
--- icon. Pages keep their full-size content hosts; the header sits above them
--- visually (transparent page frames never cover it).
-function SQP:CreatePageHeader(parent, title, icon)
+-- icon, optional subtext rendered inside the same band. Pages keep their
+-- full-size content hosts; the header sits above them visually (transparent
+-- page frames never cover it).
+function SQP:CreatePageHeader(parent, title, opts)
+    opts = type(opts) == "string" and { icon = opts } or (opts or {})
     local D = assert(_G.RGXDesign, "SQP: RGXDesign unavailable")
-    local header = D:CreateSectionHeader(parent, title, icon or SQP.ICON_TEXTURE)
+    local header = D:CreateSectionHeader(parent, title, opts.icon or SQP.ICON_TEXTURE)
     header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -8)
     header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -8)
+    if opts.subtext then
+        local sub = self:CreateLabel(header, { text = opts.subtext, size = "small", color = "muted" })
+        -- True "within the header" placement: title and subtext share the band.
+        sub:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 34, 4)
+    end
     return header
 end
 
