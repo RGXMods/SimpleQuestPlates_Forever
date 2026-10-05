@@ -12,14 +12,68 @@ local function Card(host, title, opts)
     return SQP:CreateCard(host, title, opts)
 end
 
--- Global: behavior toggles and the reset action
+-- Global display-mode controls share a single framework row.
+local function BuildDisplayModes(parent, yOffset)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, yOffset)
+    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset)
+    row:SetHeight(22)
+    local left, right = SQP:CreateOptionColumns(row)
+
+    local task = SQP:CreateStyledCheckbox(left, "Task Icons")
+    task:SetPoint("TOPLEFT", left, "TOPLEFT", 0, 0)
+    task:SetPoint("TOPRIGHT", left, "TOPRIGHT", 0, 0)
+    task.checkbox:SetChecked(SQPSettings.showKillIcon ~= false
+        or SQPSettings.showLootIcon ~= false or SQPSettings.showPercentIcon == true)
+    SQP.optionControls.showQuestTypeIcons = task.checkbox
+    task.checkbox:SetScript("OnClick", function(self)
+        local enabled = self:GetChecked() and true or false
+        for _, key in ipairs({ "showKillIcon", "showLootIcon", "showPercentIcon" }) do
+            SQP:SetSetting(key, enabled)
+            local control = SQP.optionControls[key]
+            if control then control:SetChecked(enabled) end
+        end
+        SQP:RefreshAllNameplates()
+        SQP:UpdatePreviewManually()
+    end)
+
+    local text = SQP:CreateStyledCheckbox(right, "Text Mode")
+    text:SetPoint("TOPLEFT", right, "TOPLEFT", 0, 0)
+    text:SetPoint("TOPRIGHT", right, "TOPRIGHT", 0, 0)
+    text.checkbox:SetChecked(SQPSettings.showIconBackground == false)
+    SQP.optionControls.showIconBackgroundTextOnly = text.checkbox
+    text.checkbox:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            SQP:SetSetting("showIconBackground", false)
+            SQP:SetSetting("showPercentIcon", true)
+            local percent = SQP.optionControls.showPercentIcon
+            if percent then percent:SetChecked(true) end
+        else
+            SQP:SetSetting("showIconBackground", nil)
+        end
+        for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
+            SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
+            local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
+            if update then update() end
+        end
+        SQP:RebuildQuestPlates()
+        SQP:UpdatePreviewManually()
+    end)
+    SQP:SetControlTooltip(text, "Use objective ratio text. Forever keeps its frame; Classic shows bare text.")
+end
+
+-- Global behavior toggles and the reset action.
 local function BuildGeneralPage(leftColumn)
     local generalCard = Card(leftColumn, "General")
     do
         local c = generalCard.content
+        local right = CreateFrame("Frame", nil, c)
+        right:SetPoint("TOPLEFT", c, "TOP", 0, 0)
+        right:SetPoint("TOPRIGHT", c, "TOPRIGHT", 0, 0)
+        right:SetHeight(44)
         local yOffset = -8
 
-        local chatFrame = SQP:CreateStyledCheckbox(c, SQP.L["OPTIONS_CHAT_MESSAGES"] or "Show Chat Messages")
+        local chatFrame = SQP:CreateStyledCheckbox(c, "Chat Messages")
         chatFrame:SetPoint("TOPLEFT", 8, yOffset)
         chatFrame.checkbox:SetChecked(SQPSettings.showMessages ~= false)
         SQP.optionControls.showMessages = chatFrame.checkbox
@@ -28,7 +82,7 @@ local function BuildGeneralPage(leftColumn)
         end)
         yOffset = yOffset - 22
 
-        local minimapFrame = SQP:CreateStyledCheckbox(c, "Enable minimap icon")
+        local minimapFrame = SQP:CreateStyledCheckbox(c, "Minimap Icon")
         minimapFrame:SetPoint("TOPLEFT", 8, yOffset)
         minimapFrame.checkbox:SetChecked(SQPSettings.minimapIconEnabled ~= false)
         SQP.optionControls.minimapIconEnabled = minimapFrame.checkbox
@@ -38,50 +92,23 @@ local function BuildGeneralPage(leftColumn)
         SQP:SetControlTooltip(minimapFrame, "Left-click opens options. Drag to move. Ctrl-right-click hides it.")
         yOffset = yOffset - 22
 
-        local combatFrame = SQP:CreateStyledCheckbox(c, SQP.L["OPTIONS_HIDE_COMBAT"] or "Hide Icons in Combat")
-        combatFrame:SetPoint("TOPLEFT", 8, yOffset)
+        local combatFrame = SQP:CreateStyledCheckbox(right, "Hide in Combat")
+        combatFrame:SetPoint("TOPLEFT", 2, -8)
         combatFrame.checkbox:SetChecked(SQPSettings.hideInCombat)
         SQP.optionControls.hideInCombat = combatFrame.checkbox
         combatFrame.checkbox:SetScript("OnClick", function(self)
             SQP:SetSetting('hideInCombat', self:GetChecked()); SQP:RefreshAllNameplates()
         end)
-        yOffset = yOffset - 22
 
-        local instanceFrame = SQP:CreateStyledCheckbox(c, SQP.L["OPTIONS_HIDE_INSTANCE"] or "Hide Icons in Instances")
-        instanceFrame:SetPoint("TOPLEFT", 8, yOffset)
+        local instanceFrame = SQP:CreateStyledCheckbox(right, "Hide in Instances")
+        instanceFrame:SetPoint("TOPLEFT", 2, -30)
         instanceFrame.checkbox:SetChecked(SQPSettings.hideInInstance)
         SQP.optionControls.hideInInstance = instanceFrame.checkbox
         instanceFrame.checkbox:SetScript("OnClick", function(self)
             SQP:SetSetting('hideInInstance', self:GetChecked()); SQP:RefreshAllNameplates()
         end)
-        yOffset = yOffset - 22
 
-        -- Global master switch for the kill/loot/percent task icons; the
-        -- per-type checkboxes keep overriding it when they exist.
-        local typeIconsFrame = SQP:CreateStyledCheckbox(c, "Show quest type icons")
-        typeIconsFrame:SetPoint("TOPLEFT", 8, yOffset)
-        typeIconsFrame.checkbox:SetChecked(
-            SQPSettings.showKillIcon ~= false or SQPSettings.showLootIcon ~= false or SQPSettings.showPercentIcon == true)
-        SQP.optionControls.showQuestTypeIcons = typeIconsFrame.checkbox
-        typeIconsFrame.checkbox:SetScript("OnClick", function(self)
-            local enabled = self:GetChecked()
-            if enabled then
-                SQP:SetSetting('showKillIcon', true)
-                SQP:SetSetting('showLootIcon', true)
-                SQP:SetSetting('showPercentIcon', true)
-            else
-                SQP:SetSetting('showKillIcon', false)
-                SQP:SetSetting('showLootIcon', false)
-                SQP:SetSetting('showPercentIcon', false)
-            end
-            local oc = SQP.optionControls
-            if oc.showKillIcon then oc.showKillIcon:SetChecked(enabled) end
-            if oc.showLootIcon then oc.showLootIcon:SetChecked(enabled) end
-            if oc.showPercentIcon then oc.showPercentIcon:SetChecked(enabled) end
-            SQP:RefreshAllNameplates()
-            SQP:UpdatePreviewManually()
-        end)
-        yOffset = yOffset - 30
+        yOffset = yOffset - 8
         local resetButton = SQP:CreateStyledButton(c, SQP.L["OPTIONS_RESET"] or "Reset All Settings", 138, 20)
         resetButton:SetPoint("TOP", c, "TOP", 0, yOffset)
         resetButton:SetAlpha(0.8)
@@ -95,13 +122,13 @@ end
 -- keys, clears per-type overrides, refreshes all style controls, rebuilds
 -- plates and the preview. Shared by the Global dropdown and display presets.
 -- mode: "icon" | "chip" | "text".
-function SQP:ApplyGlobalDisplayStyle(mode)
+function SQP:ApplyGlobalDisplayStyle(mode, backgroundOnly)
     assert(mode == "icon" or mode == "chip" or mode == "text", "SQP: unknown display mode")
     SQP:SetSetting('unifiedNameplates', mode == "chip")
-    SQP:SetSetting('showIconBackground', mode ~= "text")
+    if not backgroundOnly then SQP:SetSetting('showIconBackground', mode ~= "text") end
     for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
         SQP:SetSetting(typeKey .. "LevelChip", nil)
-        SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
+        if not backgroundOnly then SQP:SetSetting(typeKey .. "ShowIconBackground", nil) end
         local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
         if update then update() end
     end
@@ -111,7 +138,7 @@ function SQP:ApplyGlobalDisplayStyle(mode)
     end
     local box = SQP.optionControls.showIconBackgroundTextOnly
     if box and type(box.SetChecked) == "function" then
-        box:SetChecked(mode == "text")
+        box:SetChecked(SQPSettings.showIconBackground == false)
     end
     SQP:RebuildQuestPlates()
     if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
@@ -127,16 +154,14 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
     do
         local c = displayCard.content
         local yOffset = -8
+        BuildDisplayModes(c, yOffset)
+        yOffset = yOffset - 28
 
-        -- Nameplate Side (top)
-        local sideHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        SQP:ApplyDefaultFont(sideHeader)
-        sideHeader:SetPoint("TOPLEFT", 8, yOffset)
-        sideHeader:SetText("|cff58be81Nameplate Side|r")
-        yOffset = yOffset - 18
-
+        -- Side buttons are self-describing; no extra heading row.
         local sides = _G.RGXUI:CreateButtonGroup(c, { "Left Side", "Right Side" },
-            { buttonWidth = 84, height = 20, gap = 8, y = yOffset })
+            { buttonWidth = 68, height = 20, gap = 4 })
+        sides:ClearAllPoints()
+        sides:SetPoint("TOP", c, "TOP", 0, yOffset)
         local leftBtn, rightBtn = sides.buttons[1], sides.buttons[2]
         SQP.optionControls.anchorButtons = {left = leftBtn, right = rightBtn}
 
@@ -148,52 +173,36 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
         UpdateAnchorButtons()
 
         leftBtn:SetScript("OnClick", function()
+            local oldBaseline = SQP:GetSettingBaseline("offsetX")
+            local oldX = SQP:GetSettingValue("offsetX")
             SQP:SetSetting('anchor', "RIGHT")
             SQP:SetSetting('relativeTo', "LEFT")
+            if oldX == oldBaseline then
+                SQP:SetSetting('offsetX', SQP:GetSettingBaseline("offsetX"))
+                local slider = SQP.optionControls.offsetX
+                if slider then slider.SetValue(SQP:GetSettingBaseline("offsetX")) end
+            end
             UpdateAnchorButtons()
             SQP:RefreshAllNameplates()
         end)
         rightBtn:SetScript("OnClick", function()
+            local oldBaseline = SQP:GetSettingBaseline("offsetX")
+            local oldX = SQP:GetSettingValue("offsetX")
             SQP:SetSetting('anchor', "LEFT")
             SQP:SetSetting('relativeTo', "RIGHT")
+            if oldX == oldBaseline or oldX == SQP.DEFAULTS.offsetX then
+                SQP:SetSetting('offsetX', SQP:GetSettingBaseline("offsetX"))
+                local slider = SQP.optionControls.offsetX
+                if slider then slider.SetValue(SQP:GetSettingBaseline("offsetX")) end
+            end
             UpdateAnchorButtons()
             SQP:RefreshAllNameplates()
         end)
-        yOffset = yOffset - 28
+
 
         local Drops = _G.RGXDropdowns
+        yOffset = yOffset - 28
         local hasDropdown = Drops and type(Drops.CreateNestedDropdown) == "function"
-        local function RefreshPlatesAndPreview()
-            SQP:RebuildQuestPlates()
-            if SQP.previewFrame and type(SQP.previewFrame.UpdatePreview) == "function" then
-                SQP.previewFrame:UpdatePreview()
-            end
-        end
-        if hasDropdown then
-            -- Text mode tick box
-            local textFrame = SQP:CreateStyledCheckbox(c, "Text mode")
-            textFrame:SetPoint("TOPLEFT", 8, yOffset)
-            textFrame.checkbox:SetChecked(SQPSettings.showIconBackground == false)
-            SQP.optionControls.showIconBackgroundTextOnly = textFrame.checkbox
-            textFrame.checkbox:SetScript("OnClick", function(self)
-                if self:GetChecked() then
-                    SQP:SetSetting('showIconBackground', false)
-                    SQP:SetSetting('unifiedNameplates', false)
-                else
-                    SQP:SetSetting('showIconBackground', nil)
-                    SQP:SetSetting('unifiedNameplates', nil)
-                end
-                for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
-                    SQP:SetSetting(typeKey .. "LevelChip", nil)
-                    SQP:SetSetting(typeKey .. "ShowIconBackground", nil)
-                    local update = SQP.optionControls[typeKey .. "ShowIconBackgroundStyleUpdater"]
-                    if update then update() end
-                end
-                RefreshPlatesAndPreview()
-            end)
-            SQP:SetControlTooltip(textFrame, "Show only the count text, no icon background or chip.")
-            yOffset = yOffset - 22
-        end
 
         -- Range 0.5–1.5 centers the slider on 1; 1.1 is the baseline default.
         local scaleSlider = SQP:CreateStyledSlider(c, {
@@ -216,6 +225,11 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
         xSlider:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, yOffset)
         SQP.optionControls.offsetX = xSlider
         SQP.optionControls.offsetXLabel = xSlider.valueLabel
+        if xSlider.resetButton then
+            xSlider.resetButton:SetScript("OnClick", function()
+                xSlider.SetValue(SQP:GetSettingBaseline("offsetX"))
+            end)
+        end
         yOffset = yOffset - 42
 
         local ySlider = SQP:CreateStyledSlider(c, {
@@ -231,7 +245,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
 
         if hasDropdown then
             -- Background style dropdown (bottom): Classic icon or the
-            -- Forever level chip. Text mode lives in the tick box above.
+            -- Forever level chip. Text Mode lives at the top of this card.
             -- Storage stays backward compatible: showIconBackground =
             -- icon/text toggle, unifiedNameplates = chip.
             local function CurrentMode()
@@ -249,7 +263,7 @@ local function BuildDisplayPage(leftColumn, rightColumn, generalCard)
                     { text = "Forever",               value = "chip" },
                 },
                 onChange = function(value)
-                    SQP:ApplyGlobalDisplayStyle(value)
+                    SQP:ApplyGlobalDisplayStyle(value, true)
                 end,
             })
             if dd then
@@ -364,6 +378,7 @@ local function BuildAnimationPage(page)
         -- Bottom of the card: restores every SQP animation setting, not just
         -- the toast trio. Baselines match SQP.DEFAULTS exactly.
         local animationKeys = {
+            "animationsEnabled", "killAnimationsEnabled", "lootAnimationsEnabled", "percentAnimationsEnabled",
             "animateQuestIcon", "animateQuestIcons", "animateMainIcons",
             "killAnimateMain", "lootAnimateMain", "percentAnimateMain",
             "syncAnimations", "useGlobalAnimationSettings", "globalAnimationEnabled",
@@ -408,15 +423,10 @@ local function BuildAnimationPage(page)
         local c = toastCard.content
         local flow = toastCard.flow
 
-        local toastFrame = SQP:CreateStyledCheckbox(c, "Quest toast (on target)")
-        flow:Add(toastFrame, { fill = true })
-        toastFrame.checkbox:SetChecked(SQPSettings.showQuestMarker ~= false)
-        SQP.optionControls.showQuestMarker = toastFrame.checkbox
-        toastFrame.checkbox:SetScript("OnClick", function(self)
-            SQP:SetSetting('showQuestMarker', self:GetChecked())
-            SQP:RefreshAllNameplates()
-        end)
-        SQP:SetControlTooltip(toastFrame, "Quest marker toast: the question-mark pop that plays when you target a mob with a quest icon.")
+        flow:AddSpacer(8)
+        local toastSwitch = SQP:CreateHeaderSwitch(toastCard, "showQuestMarker")
+        local toastPreview = SQP:CreateStyledButton(c, "Preview Toast", 104, 20)
+        SQP:SetControlTooltip(toastSwitch, "Enable quest toast: the question-mark pop that plays when you target a mob with a quest icon.")
 
         local toastDurationSlider = SQP:CreateStyledSlider(c, {
             key = "toastDuration", label = "Toast Duration", min = 0.3, max = 2.5, step = 0.1,
@@ -429,13 +439,7 @@ local function BuildAnimationPage(page)
         -- Selecting the toast card's preview is the only way the toast replays;
         -- typing random animation options must not fire it. Toast stays
         -- selected only while this tab is open and the feature is enabled.
-        -- The button sits centered on its own row via a full-width host so
-        -- the flow layout keeps its vertical rhythm.
-        local toastPreviewHost = CreateFrame("Frame", nil, c)
-        toastPreviewHost:SetHeight(20)
-        local toastPreview = SQP:CreateStyledButton(toastPreviewHost, "Preview toast", 88, 20)
-        toastPreview:SetPoint("TOP", toastPreviewHost, "TOP", 0, 0)
-        flow:Add(toastPreviewHost, { fill = true })
+        -- The enable switch lives in the card header; Preview stays in the body.
         SQP.optionControls.toastPreviewButton = toastPreview
         toastPreview:SetScript("OnClick", function()
             if SQP.previewFrame and SQP.previewFrame.questFrame then
@@ -459,6 +463,7 @@ local function BuildAnimationPage(page)
         flow:Add(toastSizeSlider, { fill = true })
         SQP.optionControls.questMarkerSize = toastSizeSlider
         SQP.optionControls.questMarkerSizeLabel = toastSizeSlider.valueLabel
+        flow:AddRow({ { child = toastPreview, align = "center" } })
         toastCard:AutoHeight()
     end
 end
@@ -477,7 +482,13 @@ end
 
 function SQP:CreateGlobalOptions(content)
     if not self.optionControls then self.optionControls = {} end
-    local contentArea = SQP:CreatePageArea(content, "Global")
+    local contentArea, header = SQP:CreatePageArea(content, "Global")
+    local typeSwitches = {}
+    for _, typeKey in ipairs({ "kill", "loot", "percent" }) do
+        local switch = SQP:CreateHeaderSwitch(header, typeKey .. "Enabled")
+        switch:Hide()
+        typeSwitches[#typeSwitches + 1] = switch
+    end
     local pages = {}
     for i = 1, 4 do
         local page = CreateFrame("Frame", nil, contentArea)
@@ -488,6 +499,9 @@ function SQP:CreateGlobalOptions(content)
     local pager = { frames = pages, page = 1 }
     function pager:SetPage(n)
         self.page = n
+        local titles = { "Global", "Kill", "Loot", "Percent" }
+        if header.label then header.label:SetText(titles[n]) end
+        for i, switch in ipairs(typeSwitches) do switch:SetShown(n == i + 1) end
         for i, page in ipairs(self.frames) do page:SetShown(i == n) end
     end
     self.optionControls.generalPager = pager
@@ -516,6 +530,7 @@ end
 
 function SQP:CreateAnimationOptions(content)
     if not self.optionControls then self.optionControls = {} end
-    local contentArea = SQP:CreatePageArea(content, "Animation")
+    local contentArea, header = SQP:CreatePageArea(content, "Animation")
+    SQP:CreateHeaderSwitch(header, "animationsEnabled")
     BuildAnimationPage(contentArea)
 end

@@ -10,6 +10,7 @@ local addonName, SQP = ...
 function SQP:CreateLootOptions(content)
     if not self.optionControls then self.optionControls = {} end
 
+    -- Swap the two card stacks while retaining their internal ordering.
     local leftColumn, rightColumn = SQP:CreateOptionColumns(content)
 
     local function ActivateLoot()
@@ -38,34 +39,31 @@ function SQP:CreateLootOptions(content)
         slider:SetPoint("TOPLEFT", 8, yOff)
         slider:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOff)
         SQP.optionControls[key] = slider
+        if key == "lootIconOffsetX" and slider.resetButton then
+            slider.resetButton:SetScript("OnClick", function()
+                slider.SetValue(SQP:GetSettingBaseline(key))
+            end)
+        end
         SQP.optionControls[key .. "Label"] = slider.valueLabel
         return yOff - slider:GetHeight() - 8
     end
 
-    -- LEFT: Loot Display (show + side, display style, size/offsets, reset)
-    local displayCard = SQP:CreateCard(leftColumn, "Loot Display")
+    -- RIGHT: task icon visibility, side, dimensions, tint, and reset.
+    local taskCard = SQP:CreateCard(rightColumn, "Loot Task Icon")
     do
-        local c = displayCard.content
+        local c = taskCard.content
         local yOffset = -8
 
-        local showFrame = self:CreateStyledCheckbox(c, "Show Loot Icon")
-        showFrame:SetPoint("TOPLEFT", 8, yOffset)
-        showFrame.checkbox:SetChecked(SQPSettings.showLootIcon ~= false)
-        self.optionControls.showLootIcon = showFrame.checkbox
-        showFrame.checkbox:SetScript("OnClick", function(self)
-            SQP:SetSetting('showLootIcon', self:GetChecked())
-            ActivateLoot()
-            SQP:RefreshAllNameplates()
-        end)
-        self:CreateIconSideSection(c, "loot", ActivateLoot, yOffset)
+        self:CreateHeaderSwitch(taskCard, "showLootIcon")
+        yOffset = self:CreateMiniIconTintSection(c, "loot", ActivateLoot, yOffset)
+        self:CreateIconSideSection(c, "loot", ActivateLoot, yOffset, { center = true })
         yOffset = yOffset - 24
 
-        -- Display Style (Classic / Forever dropdown, Text mode tick box)
-        yOffset = self:CreateDisplayStyleSection(c, "loot", ActivateLoot, yOffset)
+        -- Task-icon dimensions; main background/text controls live separately.
 
         yOffset = MakeSlider(c, "Size",     "lootIconSize",    14,   8,  40, yOffset)
-        yOffset = MakeSlider(c, "Offset X", "lootIconOffsetX", -38, -80, 80, yOffset)
-        yOffset = MakeSlider(c, "Offset Y", "lootIconOffsetY",  16, -80, 80, yOffset)
+        yOffset = MakeSlider(c, "Offset X", "lootIconOffsetX", SQP:GetSettingBaseline("lootIconOffsetX"), -80, 80, yOffset)
+        yOffset = MakeSlider(c, "Offset Y", "lootIconOffsetY", SQP:GetSettingBaseline("lootIconOffsetY"), -80, 80, yOffset)
 
         yOffset = yOffset - 10
         local resetBtn = self:CreateStyledButton(c, "Reset Loot Settings", 150, 22)
@@ -73,6 +71,8 @@ function SQP:CreateLootOptions(content)
         resetBtn:SetScript("OnClick", function()
             local D = SQP.DEFAULTS
             local oc = SQP.optionControls
+            SQP:SetSetting('lootAnimationsEnabled', D.lootAnimationsEnabled)
+            if oc.lootAnimationsEnabled then oc.lootAnimationsEnabled:SetChecked(D.lootAnimationsEnabled) end
             SQP:SetSetting('showLootIcon',      D.showLootIcon)
             SQP:SetSetting('lootShowIconBackground', D.lootShowIconBackground)
             SQP:SetSetting('lootLevelChip', nil)
@@ -83,7 +83,7 @@ function SQP:CreateLootOptions(content)
             SQP:SetSetting('lootTintIcon',      D.lootTintIcon)
             SQP:SetSetting('lootTintIconColor', {unpack(D.lootTintIconColor)})
             SQP:SetSetting('lootIconSize',      D.lootIconSize)
-            SQP:SetSetting('lootIconOffsetX',   D.lootIconOffsetX)
+            SQP:SetSetting('lootIconOffsetX',   SQP:GetSettingBaseline("lootIconOffsetX"))
             SQP:SetSetting('lootIconOffsetY',   D.lootIconOffsetY)
             SQP:SetSetting('lootFontSize',      D.lootFontSize)
             SQP:SetSetting('lootFontFamily',    D.lootFontFamily)
@@ -103,7 +103,7 @@ function SQP:CreateLootOptions(content)
             if oc.lootTintIconColorSwatch      then oc.lootTintIconColorSwatch:SetColorTexture(unpack(D.lootTintIconColor)) end
             if oc.lootTintIconAlphaUpdate      then oc.lootTintIconAlphaUpdate() end
             if oc.lootIconSize    then oc.lootIconSize.SetValue(D.lootIconSize) end
-            if oc.lootIconOffsetX then oc.lootIconOffsetX.SetValue(D.lootIconOffsetX) end
+            if oc.lootIconOffsetX then oc.lootIconOffsetX.SetValue(SQP:GetSettingBaseline("lootIconOffsetX")) end
             if oc.lootIconOffsetY then oc.lootIconOffsetY.SetValue(D.lootIconOffsetY) end
             if oc.lootFontSize then oc.lootFontSize.SetValue(SQP:GetSettingBaseline("lootFontSize")) end
             if oc.lootFontFamily and type(oc.lootFontFamily.Reset) == "function" then
@@ -116,17 +116,19 @@ function SQP:CreateLootOptions(content)
             SQP:RefreshAllNameplates()
             ActivateLoot()
         end)
-        displayCard:FitContent()
+        taskCard:FitContent()
     end
 
-    -- RIGHT: Loot Animation (top of the right column)
-    local animCard = SQP:CreateCard(rightColumn, "Loot Animation")
+    -- LEFT: Main Icon first, then Animation.
+    local mainCard = SQP:CreateCard(leftColumn, "Loot Main Icon")
+    local animCard = SQP:CreateCard(leftColumn, "Loot Animation", { above = mainCard })
+    SQP:CreateHeaderSwitch(animCard, "lootAnimationsEnabled")
     do
         local c = animCard.content
         local yOffset = -8
 
         local animFrame = self:CreateStyledCheckbox(c, "Animate Task Icons")
-        animFrame:SetPoint("TOPLEFT", 8, yOffset)
+        animFrame:SetPoint("TOPLEFT", 8, yOffset - 26)
         animFrame.checkbox:SetChecked(SQPSettings.animateQuestIcons == true)
         self.optionControls.animateQuestIconsLoot = animFrame.checkbox
         animFrame.checkbox:SetScript("OnClick", function(self)
@@ -142,7 +144,7 @@ function SQP:CreateLootOptions(content)
         yOffset = yOffset - 26
 
         local animMainFrame = self:CreateStyledCheckbox(c, "Animate Main Icon")
-        animMainFrame:SetPoint("TOPLEFT", 8, yOffset)
+        animMainFrame:SetPoint("TOPLEFT", 8, yOffset + 26)
         animMainFrame.checkbox:SetChecked(SQPSettings.lootAnimateMain == true)
         self.optionControls.lootAnimateMain = animMainFrame.checkbox
         animMainFrame.checkbox:SetScript("OnClick", function(self)
@@ -179,11 +181,12 @@ function SQP:CreateLootOptions(content)
         animCard:FitContent()
     end
 
-    -- RIGHT: Loot Color (under Animation)
-    local colorCard = SQP:CreateCard(rightColumn, "Loot Color", { above = animCard })
+    -- Populate the Main Icon card above Animation.
     do
-        local c = colorCard.content
+        local c = mainCard.content
         local yOffset = -8
+        local textRowY = yOffset
+        yOffset = yOffset - 24
 
         -- Loot Color
         local colorHeader = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -206,7 +209,7 @@ function SQP:CreateLootOptions(content)
         local colorLbl = c:CreateFontString(nil, "ARTWORK", "GameFontNormal")
         SQP:ApplyDefaultFont(colorLbl)
         colorLbl:SetPoint("LEFT", colorBtn, "RIGHT", 6, 0)
-        colorLbl:SetText("Loot Color")
+        colorLbl:SetText("Count Color")
         colorLbl:SetTextColor(_G.RGXDesign:Unpack("text"))
 
         local colorReset = self:CreateInlineResetButton(c, function()
@@ -229,8 +232,8 @@ function SQP:CreateLootOptions(content)
         end)
         yOffset = yOffset - 28
 
-        -- Loot Icon Tinting (mini icon, compact inline row; reset right-aligned)
-        yOffset = self:CreateMiniIconTintSection(c, "loot", ActivateLoot, yOffset)
-        colorCard:FitContent()
+        -- Background Style ends the Main Icon card.
+        yOffset = self:CreateDisplayStyleSection(c, "loot", ActivateLoot, yOffset, { textRowY = textRowY })
+        mainCard:FitContent()
     end
 end

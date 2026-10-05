@@ -127,7 +127,7 @@ SQP.DEFAULTS = {
     fontOutline = "",            -- No outline by default
     outlineWidth = 0,
     fontSize = 12,
-    fontFamily = "FrizQuadrata", -- RGX framework default font (RGXFonts)
+    fontFamily = "Fonts/FRIZQT__.TTF", -- Operator's saved Default profile baseline
     outlineColor = {0, 0, 0},
     outlineAlpha = 0,
     showMessages = true,
@@ -141,7 +141,7 @@ SQP.DEFAULTS = {
     questMarkerSize = 40,
     percentSignSide = "right",       -- right | left
     killIconSide = "left",           -- kill task icon badge side: left | right
-    lootIconSide = "right",          -- loot task icon badge side: left | right
+    lootIconSide = "left",           -- Operator's saved Default profile baseline
     showTargetGlow = true,           -- (retired: never touch Blizzard's selection highlight)
     syncAnimations = false,
     toastDuration = 1.3,
@@ -151,6 +151,13 @@ SQP.DEFAULTS = {
     animateMainIcons = false, -- Global main-icon option; per-type toggles apply when off
     useGlobalAnimationSettings = false,
     globalAnimationEnabled = true,
+    animationsEnabled = true,
+    killAnimationsEnabled = true,
+    lootAnimationsEnabled = true,
+    percentAnimationsEnabled = false,
+    killEnabled = true,
+    lootEnabled = true,
+    percentEnabled = true,
     animationCombatMode = "always", -- always | combat | outofcombat
     globalAnimationIntensity = 100,
     killAnimationIntensity = 100,
@@ -158,9 +165,9 @@ SQP.DEFAULTS = {
     percentAnimationIntensity = 100,
     showIconBackground = true, -- Legacy shared display style toggle
     -- Per-type background overrides are absent by default and inherit Global.
-    killIconOffsetX = 2,
-    killIconOffsetY = 15,
-    lootIconOffsetX = -38,
+    killIconOffsetX = 1,
+    killIconOffsetY = 16,
+    lootIconOffsetX = 3,
     lootIconOffsetY = 16,
     -- Percent sign offsets are measured from the shipped baseline position
     -- (the current in-game look); 0 renders exactly there.
@@ -201,6 +208,16 @@ SQP.defaultMinimapAngle = 220
 -- Every control and renderer resolves the same baseline. Per-type fonts
 -- inherit General until an explicit override is saved.
 function SQP:GetSettingBaseline(key)
+    if key == "offsetX" and SQPSettings.anchor == "LEFT" then return 23 end
+    if key == "killIconOffsetX" and SQPSettings.anchor ~= "LEFT" then
+        local chip = SQPSettings.killLevelChip
+        if chip == nil then chip = SQPSettings.unifiedNameplates end
+        if chip == true then return 0 end
+    end
+    if SQPSettings.anchor == "LEFT" then
+        if key == "killIconOffsetX" then return -3 end
+        if key == "lootIconOffsetX" then return -44 end
+    end
     local value = self.DEFAULTS[key]
     if value ~= nil then return value end
     if key:match("^(kill)FontSize$") or key:match("^(loot)FontSize$") or key:match("^(percent)FontSize$") then
@@ -255,6 +272,9 @@ end
 
 function SQP:IsAnimationEnabled(typeKey, isTaskIcon)
     local settings = SQPSettings or self.DEFAULTS or {}
+    if settings.animationsEnabled == false or (typeKey and settings[typeKey .. "AnimationsEnabled"] == false) then
+        return false
+    end
     local baseEnabled = false
 
     if settings.useGlobalAnimationSettings == true then
@@ -511,7 +531,7 @@ function SQP:SetupMinimapButton()
                 { left = "|cffe74c3cCtrl+Right-Click|r", right = "Hide minimap icon" },
             },
         },
-        onLeftClick = function() SQP:OpenOptions() end,
+        onLeftClick = function() SQP:ToggleOptions() end,
         onRightClick = function()
             SQP:SetSetting('enabled', SQPSettings.enabled == false)
             SQP:RefreshAllNameplates()

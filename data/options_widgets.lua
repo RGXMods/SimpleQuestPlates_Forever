@@ -58,10 +58,8 @@ end
 function SQP:CreateStyledSlider(parent, options)
 	options = options or {}
 	if options.valueDisplay == nil then options.valueDisplay = "hover" end
-	-- SQP drops the static row label; the label rides the track hover tooltip
-	-- ("Scale: 1.1") sharing the hover behavior with the dynamic value.
-	if options.label == nil then options.label = options.key or "Slider" end
-	options.noLabel = true
+	-- Purpose stays visible above the track; only the numeric value is hover-only.
+	options.noLabel = false
 	local baseline = options.key and self:GetSettingBaseline(options.key)
 	if baseline ~= nil then options.default = baseline end
 	local UI = _G.RGXUI
@@ -269,7 +267,8 @@ end
 -- typeKey: "kill", "loot", "percent", or nil (legacy/global)
 -- activatePreviewFn: optional function to call to switch the preview mode
 -- returns: next yOffset
-function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffset)
+function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffset, opts)
+    opts = opts or {}
     if type(typeKey) == "function" then
         yOffset = activatePreviewFn
         activatePreviewFn = typeKey
@@ -286,7 +285,7 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     local dsHeader = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     SQP:ApplyDefaultFont(dsHeader)
     dsHeader:SetPoint("TOPLEFT", 8, yOffset)
-    dsHeader:SetText("|cff58be81Display Style|r")
+    dsHeader:SetText("|cff58be81Background Style|r")
     dsHeader:SetFontObject(GameFontNormal)
     dsHeader:SetTextColor(0.345, 0.745, 0.506)
     yOffset = yOffset - 18
@@ -351,7 +350,6 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
         },
         onChange = function(value)
             SQP:SetSetting(chipKey, value == "chip")
-            SQP:SetSetting(settingKey, true)
             ApplyStyle()
         end,
     })
@@ -363,22 +361,26 @@ function SQP:CreateDisplayStyleSection(parent, typeKey, activatePreviewFn, yOffs
     end
     yOffset = yOffset - 30
 
-    local textFrame = self:CreateStyledCheckbox(parent, "Text mode")
-    textFrame:SetPoint("TOPLEFT", 8, yOffset)
+    local textFrame = self:CreateStyledCheckbox(parent, "Text Mode")
+    textFrame:SetPoint("TOPLEFT", 8, opts.textRowY or yOffset)
+    if opts.textRowY then textFrame:SetWidth(130) end
     textFrame.checkbox:SetChecked(IsTextMode())
     self.optionControls[settingKey .. "TextOnly"] = textFrame.checkbox
     textFrame.checkbox:SetScript("OnClick", function(self)
         if self:GetChecked() then
             SQP:SetSetting(settingKey, false)
-            SQP:SetSetting(chipKey, false)
+            if typeKey == "percent" then
+                SQP:SetSetting("showPercentIcon", true)
+                local control = SQP.optionControls.showPercentIcon
+                if control then control:SetChecked(true) end
+            end
         else
             SQP:SetSetting(settingKey, nil)
-            SQP:SetSetting(chipKey, nil)
         end
         ApplyStyle()
     end)
-    SQP:SetControlTooltip(textFrame, "Show only the count text, no icon background or chip. Unticking returns to the inherited display style.")
-    yOffset = yOffset - 22
+    SQP:SetControlTooltip(textFrame, "Use objective ratio text. Forever keeps its frame; Classic shows bare text. Unticking inherits Global text formatting.")
+    if not opts.textRowY then yOffset = yOffset - 22 end
 
     UpdateStyleButtons()
     if self.optionControls then
@@ -599,12 +601,43 @@ end
 -- icon, optional subtext rendered inside the same band. Pages keep their
 -- full-size content hosts; the header sits above them visually (transparent
 -- page frames never cover it).
+function SQP:CreateHeaderSwitch(header, key)
+    local default = self.DEFAULTS[key]
+    if default == nil then default = true end
+    local switch = _G.RGXUI:CreateSwitch(header, {
+        key = key, storage = SQPSettings, default = default,
+        onChange = function(enabled)
+            if key == "animationsEnabled" then
+                if not enabled then
+                    SQP:SetSetting("toastBeforeAnimationDisable", SQPSettings.showQuestMarker ~= false)
+                    SQP:SetSetting("showQuestMarker", false)
+                else
+                    local previous = SQPSettings.toastBeforeAnimationDisable
+                    if previous ~= nil then SQP:SetSetting("showQuestMarker", previous) end
+                    SQP:SetSetting("toastBeforeAnimationDisable", nil)
+                end
+                local toast = SQP.optionControls.showQuestMarker
+                if toast then toast:SetChecked(SQPSettings.showQuestMarker ~= false) end
+            elseif key == "showQuestMarker" and SQPSettings.animationsEnabled == false then
+                SQP:SetSetting("toastBeforeAnimationDisable", enabled)
+            end
+            SQP:RefreshAllNameplates()
+            SQP:UpdatePreviewManually()
+        end,
+    })
+    switch:SetWidth(90)
+    local band = header.headerBand or header.header or header
+    switch:SetPoint("RIGHT", band, "RIGHT", -8, 0)
+    self.optionControls[key] = switch.checkbox
+    return switch
+end
+
 function SQP:CreatePageHeader(parent, title, opts)
     opts = type(opts) == "string" and { icon = opts } or (opts or {})
     local D = assert(_G.RGXDesign, "SQP: RGXDesign unavailable")
     local header = D:CreateSectionHeader(parent, title, opts.icon or SQP.ICON_TEXTURE)
-    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -8)
-    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -8)
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
     if opts.subtext then
         local sub = self:CreateLabel(header, { text = opts.subtext, size = "small", color = "muted" })
         -- True "within the header" placement: title and subtext share the band.
@@ -652,15 +685,19 @@ function SQP:CreatePagedContent(content, pageCount, opts)
     return nil, frames
 end
 
--- Inline side controls share the Show Icon row on each individual page.
-function SQP:CreateIconSideSection(parent, typeKey, activatePreviewFn, yOffset)
+-- Task-icon side buttons occupy the first body row; center is optional.
+function SQP:CreateIconSideSection(parent, typeKey, activatePreviewFn, yOffset, opts)
     if not self.optionControls then self.optionControls = {} end
     local sideKey = typeKey == "percent" and "percentSignSide" or typeKey .. "IconSide"
     local defaultSide = self.DEFAULTS[sideKey]
-    local group = _G.RGXUI:CreateButtonGroup(parent, { "Left", "Right" },
-        { buttonWidth = 60, height = 20, gap = 6 })
+    local group = _G.RGXUI:CreateButtonGroup(parent, { "Left Side", "Right Side" },
+        { buttonWidth = 68, height = 20, gap = 4 })
     group:ClearAllPoints()
-    group:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset - 1)
+    if opts and opts.center then
+        group:SetPoint("TOP", parent, "TOP", 0, yOffset - 1)
+    else
+        group:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, yOffset - 1)
+    end
     local leftSideBtn, rightSideBtn = group.buttons[1], group.buttons[2]
 
     local function UpdateSideButtons()
