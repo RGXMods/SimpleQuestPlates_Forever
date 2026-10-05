@@ -1,3 +1,13 @@
+# 2.1.7-forever - Stable release
+
+First non-beta release on WoW Forever. Requires RGX-Framework v2.7.13.
+Complete framework-backed options (Global, Animation, per-type pages,
+Profiles tab with copy/rename/delete), tuned defaults from the tested profile
+baseline, and the raft of fixes validated across beta.1–beta.9:
+secret-GUID progress never errors, overlays yield to raid markers,
+and the revision-scoped quest cache keeps plate updates cheap. See
+[changelog](changelogs/2.1.7-forever.md).
+
 # 2.1.7-forever.beta.9 - Beta feedback build
 
 - Secret GUIDs no longer crash progress evaluation: restricted-unit cache
