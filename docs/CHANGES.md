@@ -1,3 +1,9 @@
+# 2.1.8-forever.beta.1 - Beta feedback build
+
+- Options close now hides the preview plate and its quest overlay; they return
+  when the panel opens.
+- Kill/Loot/% preview buttons keep their selection highlight after hover-out.
+
 # 2.1.7-forever - Stable release
 
 First non-beta release on WoW Forever. Requires RGX-Framework v2.7.13.
