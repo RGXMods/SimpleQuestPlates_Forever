@@ -224,7 +224,7 @@ function SQP:CreateKillOptions(content)
                 SQP:SetSetting('killColor', {nr, ng, nb})
                 sw:SetColorTexture(nr, ng, nb)
                 SQP:RefreshAllNameplates()
-            end, { presets = false, rgb = false })
+            end, { presets = false, rgb = false, scale = 0.85 })
         end)
         yOffset = yOffset - 28
 
