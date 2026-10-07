@@ -467,14 +467,11 @@ function SQP:CreateMiniIconTintSection(parent, typeKey, activatePreviewFn, yOffs
         if not SQPSettings[tintKey] then return end
         if activatePreviewFn then activatePreviewFn() end
         local r, g, b = unpack(SQPSettings[tintColorKey] or {1, 1, 1})
-        _G.RGXColors:OpenPicker({
-            r = r, g = g, b = b,
-            onChanged = function(_, nr, ng, nb)
-                SQP:SetSetting(tintColorKey, {nr, ng, nb})
-                tintSw:SetColorTexture(nr, ng, nb)
-                SQP:RefreshAllNameplates()
-            end,
-        })
+        _G.RGXFramework:GetColorPicker():Show({ r = r, g = g, b = b }, function(nr, ng, nb)
+            SQP:SetSetting(tintColorKey, {nr, ng, nb})
+            tintSw:SetColorTexture(nr, ng, nb)
+            SQP:RefreshAllNameplates()
+        end)
     end)
     yOffset = yOffset - 26
 
@@ -552,14 +549,11 @@ function SQP:CreateMainIconSection(parent, typeKey, activatePreviewFn, yOffset, 
         if not SQPSettings[tintKey] then return end
         if activatePreviewFn then activatePreviewFn() end
         local r, g, b = unpack(SQPSettings[tintColorKey] or {1, 1, 1})
-        _G.RGXColors:OpenPicker({
-            r = r, g = g, b = b,
-            onChanged = function(_, nr, ng, nb)
-                SQP:SetSetting(tintColorKey, {nr, ng, nb})
-                tintSw:SetColorTexture(nr, ng, nb)
-                SQP:RefreshAllNameplates()
-            end,
-        })
+        _G.RGXFramework:GetColorPicker():Show({ r = r, g = g, b = b }, function(nr, ng, nb)
+            SQP:SetSetting(tintColorKey, {nr, ng, nb})
+            tintSw:SetColorTexture(nr, ng, nb)
+            SQP:RefreshAllNameplates()
+        end)
     end)
     yOffset = yOffset - 26
 

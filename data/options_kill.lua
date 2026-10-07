@@ -220,14 +220,11 @@ function SQP:CreateKillOptions(content)
         colorBtn:SetScript("OnClick", function()
             ActivateKill()
             local r, g, b = unpack(SQPSettings.killColor or killDefault)
-            _G.RGXColors:OpenPicker({
-                r = r, g = g, b = b,
-                onChanged = function(_, nr, ng, nb)
-                    SQP:SetSetting('killColor', {nr, ng, nb})
-                    sw:SetColorTexture(nr, ng, nb)
-                    SQP:RefreshAllNameplates()
-                end,
-            })
+            _G.RGXFramework:GetColorPicker():Show({ r = r, g = g, b = b }, function(nr, ng, nb)
+                SQP:SetSetting('killColor', {nr, ng, nb})
+                sw:SetColorTexture(nr, ng, nb)
+                SQP:RefreshAllNameplates()
+            end)
         end)
         yOffset = yOffset - 28
 
