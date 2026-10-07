@@ -221,14 +221,11 @@ function SQP:CreatePercentOptions(content)
         colorBtn:SetScript("OnClick", function()
             ActivatePercent()
             local r, g, b = unpack(SQPSettings.percentColor or pctDefault)
-            _G.RGXColors:OpenPicker({
-                r = r, g = g, b = b,
-                onChanged = function(_, nr, ng, nb)
-                    SQP:SetSetting('percentColor', {nr, ng, nb})
-                    sw:SetColorTexture(nr, ng, nb)
-                    SQP:RefreshAllNameplates()
-                end,
-            })
+            _G.RGXFramework:GetColorPicker():Show({ r = r, g = g, b = b }, function(nr, ng, nb)
+                SQP:SetSetting('percentColor', {nr, ng, nb})
+                sw:SetColorTexture(nr, ng, nb)
+                SQP:RefreshAllNameplates()
+            end, { presets = false, rgb = false, preview = false, scale = 0.85 })
         end)
         yOffset = yOffset - 28
 
