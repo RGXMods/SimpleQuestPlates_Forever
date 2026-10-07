@@ -499,6 +499,11 @@ function SQP:CreateGlobalOptions(content)
     local pager = { frames = pages, page = 1 }
     function pager:SetPage(n)
         self.page = n
+        -- A color popup belongs to the page that opened it.
+        local RF = _G.RGXFramework
+        if RF and type(RF.DismissColorPicker) == "function" then
+            RF:DismissColorPicker()
+        end
         local titles = { "Global", "Kill", "Loot", "Percent" }
         if header.label then header.label:SetText(titles[n]) end
         for i, switch in ipairs(typeSwitches) do switch:SetShown(n == i + 1) end
