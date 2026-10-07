@@ -225,7 +225,7 @@ function SQP:CreatePercentOptions(content)
                 SQP:SetSetting('percentColor', {nr, ng, nb})
                 sw:SetColorTexture(nr, ng, nb)
                 SQP:RefreshAllNameplates()
-            end, { presets = false, rgb = false, preview = false, scale = 0.85 })
+            end, { presets = false, rgb = false, preview = false, scale = 0.85, commitOnPick = true })
         end)
         yOffset = yOffset - 28
 
