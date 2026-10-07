@@ -471,7 +471,7 @@ function SQP:CreateMiniIconTintSection(parent, typeKey, activatePreviewFn, yOffs
             SQP:SetSetting(tintColorKey, {nr, ng, nb})
             tintSw:SetColorTexture(nr, ng, nb)
             SQP:RefreshAllNameplates()
-        end, { presets = false, rgb = false, preview = false, scale = 0.85, commitOnPick = true, border = { 0.345, 0.745, 0.506 } })
+        end, { presets = false, rgb = false, preview = false, scale = 0.85, buttons = "ok", border = { 0.345, 0.745, 0.506 } })
     end)
     yOffset = yOffset - 26
 
@@ -553,7 +553,7 @@ function SQP:CreateMainIconSection(parent, typeKey, activatePreviewFn, yOffset, 
             SQP:SetSetting(tintColorKey, {nr, ng, nb})
             tintSw:SetColorTexture(nr, ng, nb)
             SQP:RefreshAllNameplates()
-        end, { presets = false, rgb = false, preview = false, scale = 0.85, commitOnPick = true, border = { 0.345, 0.745, 0.506 } })
+        end, { presets = false, rgb = false, preview = false, scale = 0.85, buttons = "ok", border = { 0.345, 0.745, 0.506 } })
     end)
     yOffset = yOffset - 26
 
