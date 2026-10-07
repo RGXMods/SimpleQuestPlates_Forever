@@ -225,7 +225,7 @@ function SQP:CreateLootOptions(content)
                 SQP:SetSetting('itemColor', {nr, ng, nb})
                 sw:SetColorTexture(nr, ng, nb)
                 SQP:RefreshAllNameplates()
-            end)
+            end, { presets = false, rgb = false })
         end)
         yOffset = yOffset - 28
 
