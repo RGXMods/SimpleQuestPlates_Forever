@@ -137,7 +137,7 @@ local function CreateObjectiveColorControl(parent, objective, yOffset)
             SQP:SetSetting(objective.colorKey, {nr, ng, nb})
             swatch:SetColorTexture(nr, ng, nb)
             SQP:RefreshAllNameplates()
-        end, { presets = false, rgb = false, scale = 0.85 })
+        end, { presets = false, rgb = false, preview = false, scale = 0.85 })
     end)
 
     return yOffset - 28
