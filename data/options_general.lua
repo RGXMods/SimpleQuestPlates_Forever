@@ -112,7 +112,21 @@ local function BuildGeneralPage(leftColumn)
         local resetButton = SQP:CreateStyledButton(c, SQP.L["OPTIONS_RESET"] or "Reset All Settings", 138, 20)
         resetButton:SetPoint("TOP", c, "TOP", 0, yOffset)
         resetButton:SetAlpha(0.8)
-        resetButton:SetScript("OnClick", function() StaticPopup_Show("SQP_RESET_CONFIRM") end)
+        resetButton:SetScript("OnClick", function()
+            local RF = _G.RGXFramework
+            local UI = RF and RF.GetUI and RF:GetUI()
+            if UI and type(UI.Confirm) == "function" then
+                UI:Confirm({
+                    title = "Reset All Settings",
+                    message = "Are you sure you want to reset all settings to defaults?",
+                    confirm = "Yes",
+                    cancel = "No",
+                    onConfirm = function() SQP:ResetSettings() end,
+                })
+            else
+                StaticPopup_Show("SQP_RESET_CONFIRM")
+            end
+        end)
         generalCard:FitContent()
     end
     return generalCard

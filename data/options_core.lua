@@ -157,6 +157,7 @@ function SQP:ToggleOptions()
     if self.optionsPanel then self.optionsPanel:Toggle() end
 end
 
+-- Legacy fallback: used only when the framework has no UI:Confirm.
 StaticPopupDialogs["SQP_RESET_CONFIRM"] = {
     text = "|cff58be81Simple Quest Plates!|r\n\nAre you sure you want to reset all settings to defaults?",
     button1 = "Yes",
